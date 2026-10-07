@@ -781,30 +781,137 @@ CREATE TABLE reembolsos_fornecedor (
 CREATE INDEX idx_reemb_forn_parceiro ON reembolsos_fornecedor (parceiro_id);
 
 -- ────────────────────────────────────────────────────────────
--- 17. DESPESAS DA EMPRESA
+-- 17. DESPESAS — Pagamentos variáveis
 -- ────────────────────────────────────────────────────────────
+-- Fonte: Despesas_Empresa.xlsx → Pagamentos
 
 CREATE TABLE despesas (
   id                    SERIAL PRIMARY KEY,
-  marca                 TEXT CHECK (marca IN ('hsp', 'odv', 'geral')),
-  tipo                  TEXT NOT NULL CHECK (tipo IN ('variavel', 'fixa')),
-  categoria             TEXT,
-  descricao             TEXT NOT NULL,
+  empresa               TEXT NOT NULL,           -- 'Shopify', 'Pipedrive', 'HomeOffice', 'Facebook ads', etc.
+  tipo_despesa          TEXT,                    -- 'Operação', 'Legal', 'Bancos', 'Paid Media HSP', 'Salários', etc.
   valor                 NUMERIC(10,2) NOT NULL,
-  data_despesa          DATE,
+  com_iva               TEXT,                    -- 'Com IVA', 'Sem Iva'
   data_pagamento        DATE,
-  recorrente            BOOLEAN DEFAULT FALSE,
-  periodicidade         TEXT,
+  forma_pagamento       TEXT,                    -- 'Transferencia', 'Revolut', etc.
+  iva_dedutivel         NUMERIC(10,2),
+  montante_liquido      NUMERIC(10,2),
+  tem_fatura            BOOLEAN DEFAULT FALSE,
+  conta                 TEXT,                    -- 'Millennium', 'Revolut', 'Outro'
+  notas                 TEXT,
+  mes                   TEXT,                    -- '2026-01', '2026-02'
+  created_at            TIMESTAMPTZ DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_despesas_data ON despesas (data_pagamento DESC);
+CREATE INDEX idx_despesas_tipo ON despesas (tipo_despesa);
+CREATE INDEX idx_despesas_mes ON despesas (mes);
+
+-- ────────────────────────────────────────────────────────────
+-- 18. DESPESAS FIXAS — Custos recorrentes
+-- ────────────────────────────────────────────────────────────
+-- Fonte: Despesas_Empresa.xlsx → Despesas Fixas
+
+CREATE TABLE despesas_fixas (
+  id                    SERIAL PRIMARY KEY,
+  empresa               TEXT NOT NULL,           -- 'Allianz', 'Pipedrive', 'Shopify', etc.
+  tipo_despesa          TEXT,                    -- 'Legal', 'Operação', 'Site', etc.
+  valor_total           NUMERIC(10,2) NOT NULL,  -- Valor pago (anual ou mensal)
+  com_iva               TEXT,                    -- 'Com IVA', 'Sem Iva'
+  frequencia            TEXT,                    -- 'Mensal', 'Anual'
+  custo_mensal          NUMERIC(10,2),           -- Custo mensal real (sem IVA)
+  custo_mensal_c_iva    NUMERIC(10,2),           -- Custo mensal com IVA
+  iva_retido_mensal     NUMERIC(10,2),
+  valido_ate            DATE,                    -- Data de validade/renovação
   notas                 TEXT,
   created_at            TIMESTAMPTZ DEFAULT NOW(),
   updated_at            TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_despesas_data ON despesas (data_despesa DESC);
-CREATE INDEX idx_despesas_marca ON despesas (marca);
+CREATE INDEX idx_despesas_fixas_validade ON despesas_fixas (valido_ate);
 
 -- ────────────────────────────────────────────────────────────
--- 18. LEADS (Pipeline de vendas)
+-- 19. HISTÓRICOS — Cotações e orçamentos gerados pelo dashboard
+-- ────────────────────────────────────────────────────────────
+-- Fonte: Históricos.xlsx — dados JSON do quote generator
+
+-- Cotações ODV (Quote Generator)
+CREATE TABLE historico_cotacoes (
+  id                    BIGINT PRIMARY KEY,      -- timestamp-based ID
+  timestamp             TIMESTAMPTZ,
+  lead_ref              TEXT,                    -- #OT1252
+  pax                   INTEGER,
+  tipo                  TEXT,                    -- 'cidade', 'praia', etc.
+  incluir_reservar      BOOLEAN DEFAULT FALSE,
+  dados                 JSONB NOT NULL,          -- JSON completo (destinos, extras, roteiro)
+  created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_hist_cot_lead ON historico_cotacoes (lead_ref);
+CREATE INDEX idx_hist_cot_ts ON historico_cotacoes (timestamp DESC);
+
+-- Cotações HSP (HenStag quotes)
+CREATE TABLE historico_cotacoes_hsp (
+  id                    BIGINT PRIMARY KEY,
+  timestamp             TIMESTAMPTZ,
+  nome                  TEXT,
+  cidade                TEXT,
+  pax                   INTEGER,
+  total                 NUMERIC(10,2),
+  dados                 JSONB NOT NULL,          -- JSON completo (lines com atividades, SKUs, etc.)
+  created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_hist_hsp_ts ON historico_cotacoes_hsp (timestamp DESC);
+
+-- Propostas de viagem ODV (Page Generator)
+CREATE TABLE historico_propostas (
+  id                    BIGINT PRIMARY KEY,
+  timestamp             TIMESTAMPTZ,
+  destino               TEXT,
+  tipo                  TEXT,                    -- 'oferta', 'natal', etc.
+  noites                INTEGER,
+  saida                 TEXT,
+  partida               TEXT,                    -- 'do Porto', 'de Lisboa'
+  quarto                TEXT,
+  dados                 JSONB NOT NULL,          -- JSON completo (voos, hotels, extras, etc.)
+  created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_hist_prop_ts ON historico_propostas (timestamp DESC);
+CREATE INDEX idx_hist_prop_dest ON historico_propostas (destino);
+
+-- Orçamentos ODV (Budget calculator)
+CREATE TABLE historico_orcamentos (
+  id                    BIGINT PRIMARY KEY,
+  timestamp             TIMESTAMPTZ,
+  nome                  TEXT,
+  pessoas               INTEGER,
+  margem                NUMERIC(5,2),            -- % margem aplicada
+  total                 NUMERIC(10,2),
+  dados                 JSONB NOT NULL,          -- JSON completo (items, comuns, hoteis)
+  created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_hist_orc_ts ON historico_orcamentos (timestamp DESC);
+
+-- Banco de imagens (destinos e hotéis)
+CREATE TABLE banco_imagens (
+  id                    TEXT PRIMARY KEY,         -- 'dest:porto', 'hotel:sky hostel'
+  tipo                  TEXT,                     -- 'dest', 'hotel'
+  chave                 TEXT,                     -- nome do destino/hotel
+  img_url               TEXT,
+  localizacao_url       TEXT,
+  apagado               BOOLEAN DEFAULT FALSE,
+  guardado_em           BIGINT,                   -- timestamp
+  created_at            TIMESTAMPTZ DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_banco_img_tipo ON banco_imagens (tipo);
+
+-- ────────────────────────────────────────────────────────────
+-- 20. LEADS (Pipeline de vendas)
 -- ────────────────────────────────────────────────────────────
 
 CREATE TABLE leads (
@@ -831,7 +938,7 @@ CREATE INDEX idx_leads_marca ON leads (marca);
 CREATE INDEX idx_leads_estado ON leads (estado);
 
 -- ────────────────────────────────────────────────────────────
--- 19. USERS (autenticação e audit trail)
+-- 21. USERS (autenticação e audit trail)
 -- ────────────────────────────────────────────────────────────
 
 CREATE TABLE users (
@@ -844,7 +951,7 @@ CREATE TABLE users (
 );
 
 -- ────────────────────────────────────────────────────────────
--- 20. VIEWS — Dados calculados
+-- 22. VIEWS — Dados calculados
 -- ────────────────────────────────────────────────────────────
 
 -- Vista: Dívidas a parceiros — HSP (categorias separadas)
@@ -996,7 +1103,7 @@ JOIN grupos g ON g.id = cm.grupo_id
 WHERE cm.tem_fatura = FALSE AND cm.total_c_iva > 0;
 
 -- ────────────────────────────────────────────────────────────
--- 21. FUNÇÕES — Auto-update de timestamps
+-- 23. FUNÇÕES — Auto-update de timestamps
 -- ────────────────────────────────────────────────────────────
 
 CREATE OR REPLACE FUNCTION set_updated_at()
