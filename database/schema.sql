@@ -298,6 +298,7 @@ CREATE TABLE grupos (
   -- ODV-específico
   outlet_revendedor     TEXT,                    -- 'Outlet', 'Juliana', etc. (quem vendeu)
   fonte_lead            TEXT,                    -- 'Instagram', 'Whatsapp', 'Site', 'Pesssoal/Regional', etc.
+  aeroporto_saida       TEXT,                    -- Aeroporto de partida (ex: 'OPO', 'LIS', 'FAO')
   check_in_voo          TEXT,                    -- 'N/A', 'Responsabilidade do Outlet', 'Feito'
   incluido              TEXT,                    -- O que está incluído no pacote
   desconto              NUMERIC(10,2),
