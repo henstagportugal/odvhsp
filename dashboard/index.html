@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Painel de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<style>
+:root{--bg:#0f1117;--card:#181c27;--bd:#1e2535;--bd2:#2a3347;--ac:#818cf8;--ac2:#6366f1;--tx:#e2e8f0;--mut:#64748b;--mut2:#94a3b8;--ok:#34d399;--warn:#fb923c;--err:#f87171;--pur:#c084fc;--hov:rgba(129,140,248,.06)}
+*,*::before,*::after{box-sizing:border-box}
+html{color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+body.lock{overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,p{margin:0}
+.hide{display:none!important}
+.muted{color:var(--mut)}
+svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:inline-block;vertical-align:middle;flex:none}
+.gate{position:fixed;inset:0;z-index:200;background:var(--bg);display:grid;place-items:center;padding:16px}
+.gate-card{width:100%;max-width:360px;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:32px 28px;display:flex;flex-direction:column;gap:14px;align-items:stretch;text-align:center}
+.gate-card h1{font-size:20px;font-weight:700}
+.gate-card .logo-m{margin:0 auto 4px}
+.gate-err{min-height:18px;color:var(--err);font-size:13px}
+.logo-m{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#818cf8,#6366f1);display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff;flex:none}
+.logo-m.big{width:48px;height:48px;border-radius:13px;font-size:16px}
+.hdr{position:sticky;top:0;z-index:40;background:rgba(15,17,23,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--bd)}
+.hdr-in{max-width:1560px;margin:0 auto;padding:0 20px;height:58px;display:flex;align-items:center;gap:16px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+.nav{display:flex;gap:4px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav a{padding:8px 14px;border-radius:9px;color:var(--mut2);font-weight:500;white-space:nowrap;transition:background .15s,color .15s}
+.nav a:hover{background:rgba(255,255,255,.04);color:var(--tx)}
+.nav a.on{background:rgba(129,140,248,.14);color:#a5b4fc}
+.hdr-r{display:flex;align-items:center;gap:8px;flex:none}
+.conn{display:flex;align-items:center;gap:7px;padding:5px 11px;border-radius:99px;border:1px solid var(--bd);font-size:12px;color:var(--mut2);white-space:nowrap}
+.conn i{width:8px;height:8px;border-radius:50%;background:var(--mut)}
+.conn.ok i{background:var(--ok);box-shadow:0 0 0 3px rgba(52,211,153,.18)}
+.conn.err i{background:var(--err);box-shadow:0 0 0 3px rgba(248,113,113,.18)}
+.conn.chk i{background:var(--warn);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.subnav{border-top:1px solid var(--bd)}
+.subnav-in{max-width:1560px;margin:0 auto;padding:0 20px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.subnav-in a{padding:10px 14px;color:var(--mut2);font-weight:500;font-size:13px;border-bottom:2px solid transparent;white-space:nowrap}
+.subnav-in a:hover{color:var(--tx)}
+.subnav-in a.on{color:#a5b4fc;border-color:var(--ac)}
+.main{max-width:1560px;margin:0 auto;padding:24px 20px 60px}
+.pg-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+.pg-t{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.pg-s{color:var(--mut2);margin-top:2px;font-size:13px}
+.pg-act{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 16px;border-radius:9px;border:1px solid transparent;font-weight:600;font-size:13px;line-height:1.2;white-space:nowrap;transition:background .15s,border-color .15s,opacity .15s;background:transparent}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn-p{background:var(--ac2);color:#fff}
+.btn-p:hover:not(:disabled){background:#7578f5}
+.btn-g{border-color:var(--bd2);color:var(--tx);background:transparent}
+.btn-g:hover:not(:disabled){background:rgba(255,255,255,.05)}
+.btn-d{background:rgba(239,68,68,.12);color:var(--err);border-color:rgba(239,68,68,.25)}
+.btn-d:hover:not(:disabled){background:rgba(239,68,68,.2)}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn.busy::after{content:"";width:12px;height:12px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ib{display:inline-grid;place-items:center;width:32px;height:32px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--mut2);transition:background .15s,color .15s}
+.ib:hover{background:rgba(255,255,255,.07);color:var(--tx)}
+.ib.danger:hover{background:rgba(239,68,68,.14);color:var(--err)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px 18px}
+.kpi-l{font-size:12px;color:var(--mut2);font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+.kpi-v{font-size:24px;font-weight:700;letter-spacing:-.02em;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi.ok .kpi-v{color:var(--ok)}
+.kpi.err .kpi-v{color:var(--err)}
+.kpi.ac .kpi-v{color:#a5b4fc}
+.toolbar{display:flex;gap:10px;align-items:center;padding:14px;flex-wrap:wrap;border-bottom:1px solid var(--bd)}
+.srch{position:relative;flex:1 1 260px;max-width:420px}
+.srch svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--mut)}
+.srch .inp{padding-left:34px}
+.cnt-t{margin-left:auto;color:var(--mut);font-size:12px}
+.inp{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:9px;padding:9px 12px;font-size:13px;outline:none;transition:border-color .15s,box-shadow .15s;min-height:38px}
+.inp:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(129,140,248,.15)}
+.inp::placeholder{color:var(--mut)}
+.inp.bad{border-color:var(--err)}
+select.inp{appearance:auto}
+select.sel{width:auto;min-width:150px;max-width:240px}
+textarea.inp{resize:vertical;min-height:76px}
+input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-calendar-picker-indicator{filter:invert(.7);cursor:pointer}
+input[type=checkbox]{accent-color:var(--ac2);width:16px;height:16px}
+.tw{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{position:sticky;top:0;text-align:left;padding:11px 14px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--mut2);background:rgba(255,255,255,.02);border-bottom:1px solid var(--bd);white-space:nowrap;user-select:none}
+.tbl th.srt{cursor:pointer}
+.tbl th.srt:hover{color:var(--tx)}
+.tbl th.on{color:#a5b4fc}
+.tbl th .ar{font-style:normal;font-size:9px;margin-left:5px}
+.tbl td{padding:11px 14px;border-bottom:1px solid var(--bd);white-space:nowrap;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tr.clk{cursor:pointer}
+.tbl tbody tr:hover td{background:var(--hov)}
+.tbl .r{text-align:right;font-variant-numeric:tabular-nums}
+.tbl td.neg{color:var(--err);font-weight:600}
+.tbl td.b{font-weight:600}
+.tbl .tr{display:inline-block;max-width:260px;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
+.tbl td.acts{text-align:right;width:1%}
+.tbl td.acts>div{display:flex;gap:2px;justify-content:flex-end}
+.loadable{transition:opacity .15s}
+.loadable.loading{opacity:.45;pointer-events:none}
+.empty{padding:48px 20px;text-align:center;color:var(--mut)}
+.empty.err{color:var(--err)}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-top:1px solid var(--bd);flex-wrap:wrap;font-size:12px;color:var(--mut2)}
+.pg-n{display:flex;gap:4px;align-items:center}
+.pg-b{min-width:32px;height:32px;padding:0 8px;border-radius:8px;border:1px solid var(--bd);background:transparent;color:var(--mut2);font-size:12px;font-weight:500}
+.pg-b:hover:not(:disabled){background:rgba(255,255,255,.05);color:var(--tx)}
+.pg-b.on{background:rgba(129,140,248,.16);border-color:rgba(129,140,248,.4);color:#a5b4fc}
+.pg-b:disabled{opacity:.35;cursor:default}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;line-height:1.5;white-space:nowrap}
+.b-ok{background:rgba(16,185,129,.15);color:#34d399}
+.b-warn{background:rgba(249,115,22,.15);color:#fb923c}
+.b-err{background:rgba(239,68,68,.15);color:#f87171}
+.b-pur{background:rgba(139,92,246,.15);color:#c084fc}
+.b-mut{background:rgba(255,255,255,.06);color:#64748b}
+.b-def{background:rgba(129,140,248,.14);color:#a5b4fc}
+.b-hsp{background:rgba(244,114,182,.14);color:#f472b6}
+.b-odv{background:rgba(56,189,248,.14);color:#38bdf8}
+.sw{position:relative;display:inline-block;width:36px;height:20px;cursor:pointer}
+.sw input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
+.sw span{position:absolute;inset:0;border-radius:99px;background:var(--bd2);transition:background .15s;pointer-events:none}
+.sw span::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
+.sw input:checked+span{background:var(--ac2)}
+.sw input:checked+span::after{transform:translateX(16px)}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px 16px}
+.fld{display:flex;flex-direction:column;gap:5px;min-width:0}
+.fld.full,.f-sec{grid-column:1/-1}
+.lbl{font-size:12px;font-weight:500;color:var(--mut2)}
+.req{color:var(--err)}
+.f-sec{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#a5b4fc;padding-top:8px;border-bottom:1px solid var(--bd);padding-bottom:6px}
+.f-sec:first-child{padding-top:0}
+.ro{min-height:38px;display:flex;align-items:center;padding:0 12px;border-radius:9px;background:rgba(255,255,255,.025);border:1px dashed var(--bd);font-size:13px;font-variant-numeric:tabular-nums}
+.chk{display:flex;align-items:center;gap:9px;min-height:38px;font-size:13px;cursor:pointer}
+.tags{display:flex;gap:14px;flex-wrap:wrap;min-height:38px;align-items:center}
+.hint{font-size:12px;color:var(--mut);margin-top:14px}
+.ov{position:fixed;inset:0;z-index:80;background:rgba(5,7,12,.7);display:flex;align-items:flex-start;justify-content:center;padding:4vh 14px;overflow-y:auto;animation:fade .15s}
+@keyframes fade{from{opacity:0}}
+.modal{width:100%;max-width:760px;background:var(--card);border:1px solid var(--bd);border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,.55);display:flex;flex-direction:column;animation:rise .18s}
+.modal.sm{max-width:420px;margin-top:12vh}
+.modal.wide{max-width:960px}
+@keyframes rise{from{transform:translateY(12px);opacity:0}}
+.modal-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 22px;border-bottom:1px solid var(--bd)}
+.modal-h h3{font-size:16px;font-weight:700}
+.modal-b{padding:20px 22px}
+.modal-f{display:flex;gap:10px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--bd);align-items:center;flex-wrap:wrap}
+.modal-f .mr-auto{margin-right:auto}
+.cat-pick{grid-column:1/-1;padding:12px;border-radius:10px;background:rgba(129,140,248,.07);border:1px solid rgba(129,140,248,.2)}
+.pn-ov{position:fixed;inset:0;background:rgba(5,7,12,.6);z-index:60;opacity:0;transition:opacity .22s}
+.pn{position:fixed;top:0;right:0;bottom:0;width:min(1120px,100vw);background:var(--bg);border-left:1px solid var(--bd);z-index:61;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column;box-shadow:-20px 0 60px rgba(0,0,0,.4)}
+.pn-root.open .pn-ov{opacity:1}
+.pn-root.open .pn{transform:none}
+.pn-head{padding:18px 24px 14px;border-bottom:1px solid var(--bd);background:var(--card)}
+.pn-top{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+.pn-title{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.pn-meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px;color:var(--mut2);font-size:13px}
+.pn-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px}
+.pn-kpis .kpi{padding:10px 14px;background:var(--bg)}
+.pn-kpis .kpi-v{font-size:17px}
+.pn-tabs{display:flex;gap:2px;padding:0 20px;border-bottom:1px solid var(--bd);overflow-x:auto;scrollbar-width:none;background:var(--card)}
+.pn-tabs button{padding:12px 16px;background:none;border:0;border-bottom:2px solid transparent;color:var(--mut2);font-weight:500;font-size:13px;white-space:nowrap}
+.pn-tabs button:hover:not(:disabled){color:var(--tx)}
+.pn-tabs button.on{color:#a5b4fc;border-color:var(--ac)}
+.pn-tabs button:disabled{opacity:.35;cursor:not-allowed}
+.pn-body{flex:1;overflow-y:auto}
+.pad{padding:20px 24px}
+.pn-foot{position:sticky;bottom:0;padding:14px 24px;background:rgba(15,17,23,.95);border-top:1px solid var(--bd);display:flex;justify-content:flex-end;gap:10px}
+.pn-load{display:grid;place-items:center;padding:80px}
+.spin{width:26px;height:26px;border-radius:50%;border:3px solid var(--bd2);border-top-color:var(--ac);animation:spin .8s linear infinite}
+.stabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.stab{padding:7px 14px;border-radius:99px;border:1px solid var(--bd);background:transparent;color:var(--mut2);font-size:13px;font-weight:500;display:inline-flex;gap:7px;align-items:center}
+.stab:hover{color:var(--tx);background:rgba(255,255,255,.04)}
+.stab.on{background:rgba(129,140,248,.15);border-color:rgba(129,140,248,.4);color:#a5b4fc}
+.stab i{font-style:normal;min-width:18px;height:18px;border-radius:99px;background:rgba(255,255,255,.08);font-size:11px;display:grid;place-items:center;padding:0 5px}
+.stab i:empty{display:none}
+.ln-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.sums{display:flex;gap:18px;flex-wrap:wrap;padding:12px 14px;border-top:1px solid var(--bd);font-size:13px;color:var(--mut2);justify-content:flex-end}
+.sums b{color:var(--tx);font-variant-numeric:tabular-nums;margin-left:4px}
+#toasts{position:fixed;right:16px;bottom:16px;z-index:300;display:flex;flex-direction:column;gap:8px;pointer-events:none;max-width:calc(100vw - 32px)}
+.toast{pointer-events:auto;padding:11px 16px;border-radius:10px;font-size:13px;font-weight:500;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.4);animation:rise .2s;max-width:420px}
+.toast.success{background:#059669}
+.toast.error{background:#dc2626}
+.toast.info{background:#4f46e5}
+.setg{display:flex;flex-direction:column;gap:14px}
+details.adv summary{cursor:pointer;color:var(--mut2);font-size:12px;margin-bottom:8px}
+@media(max-width:760px){
+.hdr-in{padding:0 12px;gap:8px}
+.logo-t{display:none}
+.conn .ct{display:none}
+.conn{padding:6px}
+.main{padding:16px 12px 48px}
+.pg-t{font-size:19px}
+.pad{padding:16px 14px}
+.pn-head{padding:14px}
+.modal-b,.modal-h,.modal-f{padding-left:16px;padding-right:16px}
+.kpi-v{font-size:20px}
+.srch{max-width:none}
+select.sel{flex:1 1 140px;max-width:none}
+}
+</style>
+</head>
+<body>
+<div id="gate" class="gate">
+  <form id="gate-form" class="gate-card" autocomplete="off">
+    <div class="logo-m big">AG</div>
+    <h1>Painel de Gestão</h1>
+    <p class="muted">Introduza a palavra-passe para continuar.</p>
+    <input id="gate-pw" type="password" class="inp" placeholder="Palavra-passe" autocomplete="current-password" autofocus>
+    <div id="gate-err" class="gate-err"></div>
+    <button class="btn btn-p" type="submit">Entrar</button>
+  </form>
+</div>
+
+<div id="app" class="hide">
+  <header class="hdr">
+    <div class="hdr-in">
+      <a class="logo" href="#hsp"><span class="logo-m">AG</span><span class="logo-t">Painel de Gestão</span></a>
+      <nav class="nav" id="nav"></nav>
+      <div class="hdr-r">
+        <div id="conn" class="conn off" data-act="settings" style="cursor:pointer"><i></i><span class="ct">Não configurado</span></div>
+        <button class="ib" data-act="settings" data-ic="gear" title="Definições"></button>
+        <button class="ib" data-act="logout" data-ic="logout" title="Terminar sessão"></button>
+      </div>
+    </div>
+    <div class="subnav hide" id="subnav"></div>
+  </header>
+  <main id="view" class="main"></main>
+</div>
+
+<div id="panel-root"></div>
+<div id="modals"></div>
+<div id="toasts"></div>
+
+<script>
+'use strict';
+
+const PASS_HASH='46fee684fd314a7e74b800fc6f5e6f6c029b6daa08963514abf5e5c898947e4a';
+const PAGE=25;
+
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=v=>v==null?'':String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+const lsDel=k=>{try{localStorage.removeItem(k)}catch(e){}};
+const ssGet=k=>{try{return sessionStorage.getItem(k)}catch(e){return null}};
+const ssSet=(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}};
+const ssDel=k=>{try{sessionStorage.removeItem(k)}catch(e){}};
+const readJSON=s=>{try{const o=JSON.parse(s);return o&&typeof o==='object'?o:{}}catch(e){return {}}};
+const num=x=>{const n=Number(x);return isFinite(n)?n:0};
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+
+const EUR=new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'});
+const NUM=new Intl.NumberFormat('de-DE',{maximumFractionDigits:2});
+const fmtEur=v=>v==null||v===''||!isFinite(Number(v))?'—':EUR.format(Number(v));
+const fmtNum=v=>v==null||v===''||!isFinite(Number(v))?'—':NUM.format(Number(v));
+function fmtDate(v){
+  if(!v)return '—';
+  const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(v));
+  return m?m[3]+'/'+m[2]+'/'+m[1]:String(v);
+}
+function boolish(v){
+  if(v===true||v===false)return v;
+  if(v==null||v==='')return null;
+  const s=String(v).trim().toLowerCase();
+  if(['true','t','sim','s','yes','1'].includes(s))return true;
+  if(['false','f','nao','não','n','no','0'].includes(s))return false;
+  return null;
+}
+
+const I={
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  x:'<path d="M18 6L6 18M6 6l12 12"/>',
+  edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/>',
+  trash:'<path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>',
+  copy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
+  logout:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>',
+  chev:'<path d="M9 18l6-6-6-6"/>'
+};
+const ico=n=>'<svg class="i" viewBox="0 0 24 24" aria-hidden="true">'+I[n]+'</svg>';
+
+function sha256Js(s){
+  const rotr=(x,n)=>(x>>>n)|(x<<(32-n));
+  const bytes=Array.from(new TextEncoder().encode(s));
+  const bitLen=bytes.length*8;
+  bytes.push(0x80);
+  while(bytes.length%64!==56)bytes.push(0);
+  const hi=Math.floor(bitLen/4294967296),lo=bitLen>>>0;
+  for(let i=3;i>=0;i--)bytes.push((hi>>>(i*8))&255);
+  for(let i=3;i>=0;i--)bytes.push((lo>>>(i*8))&255);
+  const K=[],H=[];
+  let cnt=0;
+  for(let c=2;cnt<64;c++){
+    let prime=true;
+    for(let d=2;d*d<=c;d++)if(c%d===0){prime=false;break}
+    if(prime){
+      if(cnt<8)H[cnt]=(Math.pow(c,.5)%1)*4294967296|0;
+      K[cnt++]=(Math.pow(c,1/3)%1)*4294967296|0;
+    }
+  }
+  for(let o=0;o<bytes.length;o+=64){
+    const w=new Array(64);
+    for(let i=0;i<16;i++)w[i]=(bytes[o+i*4]<<24)|(bytes[o+i*4+1]<<16)|(bytes[o+i*4+2]<<8)|bytes[o+i*4+3];
+    for(let i=16;i<64;i++){
+      const s0=rotr(w[i-15],7)^rotr(w[i-15],18)^(w[i-15]>>>3);
+      const s1=rotr(w[i-2],17)^rotr(w[i-2],19)^(w[i-2]>>>10);
+      w[i]=(w[i-16]+s0+w[i-7]+s1)|0;
+    }
+    let a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+    for(let i=0;i<64;i++){
+      const S1=rotr(e,6)^rotr(e,11)^rotr(e,25);
+      const ch=(e&f)^(~e&g);
+      const t1=(h+S1+ch+K[i]+w[i])|0;
+      const S0=rotr(a,2)^rotr(a,13)^rotr(a,22);
+      const maj=(a&b)^(a&c)^(b&c);
+      const t2=(S0+maj)|0;
+      h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;
+    }
+    H[0]=(H[0]+a)|0;H[1]=(H[1]+b)|0;H[2]=(H[2]+c)|0;H[3]=(H[3]+d)|0;
+    H[4]=(H[4]+e)|0;H[5]=(H[5]+f)|0;H[6]=(H[6]+g)|0;H[7]=(H[7]+h)|0;
+  }
+  return H.map(x=>(x>>>0).toString(16).padStart(8,'0')).join('');
+}
+async function sha256(s){
+  try{
+    if(window.crypto&&crypto.subtle){
+      const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+      return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+    }
+  }catch(e){}
+  return sha256Js(s);
+}
+
+const TB_OVERRIDE=readJSON(lsGet('ag_tables'));
+const tb=n=>TB_OVERRIDE[n]||n;
+let sb=null;
+const CONN_TXT={ok:'Ligado',err:'Erro de ligação',off:'Não configurado',chk:'A ligar…'};
+
+function cfg(){return {url:lsGet('ag_sb_url')||'',key:lsGet('ag_sb_key')||''}}
+function initClient(){
+  const c=cfg();
+  if(!c.url||!c.key||!window.supabase){sb=null;return false}
+  try{
+    sb=window.supabase.createClient(c.url,c.key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+    return true;
+  }catch(e){sb=null;return false}
+}
+function setConn(state,msg){
+  const el=$('#conn');
+  if(!el)return;
+  el.className='conn '+state;
+  $('.ct',el).textContent=CONN_TXT[state];
+  el.title=msg||CONN_TXT[state];
+}
+async function checkConn(){
+  if(!sb){setConn('off');return false}
+  setConn('chk');
+  try{
+    const {error}=await sb.from(tb('grupos')).select('id',{count:'exact',head:true});
+    if(error)throw error;
+    setConn('ok');
+    return true;
+  }catch(e){
+    setConn('err',errMsg(e));
+    return false;
+  }
+}
+function errMsg(e){
+  if(!e)return 'Erro desconhecido';
+  const code=e.code||'';
+  const m=e.message||e.details||String(e);
+  if(code==='23505')return 'Já existe um registo com estes dados (valor duplicado).';
+  if(code==='23503')return 'Operação não permitida: existem registos associados.';
+  if(code==='23502')return 'Existem campos obrigatórios por preencher.';
+  if(code==='42501')return 'Sem permissões para esta operação.';
+  if(/Failed to fetch|NetworkError/i.test(m))return 'Falha de rede. Verifique a ligação e o URL do Supabase.';
+  return m;
+}
+
+function gateInit(){
+  $('#gate-form').addEventListener('submit',async e=>{
+    e.preventDefault();
+    const pw=$('#gate-pw');
+    const h=await sha256(pw.value);
+    if(h===PASS_HASH){
+      ssSet('ag_auth_ok','1');
+      startApp();
+    }else{
+      $('#gate-err').textContent='Palavra-passe incorreta.';
+      pw.select();
+    }
+  });
+}
+function logout(){
+  ssDel('ag_auth_ok');
+  location.reload();
+}
+
+const TABS=[['hsp','HSP'],['odv','ODV'],['parceiros','Parceiros'],['produtos','Produtos'],['despesas','Despesas']];
+const APP={tab:'hsp',sub:null,subs:{}};
+
+function route(){
+  const h=location.hash.replace(/^#\/?/,'').split('/');
+  const tab=TABS.some(t=>t[0]===h[0])?h[0]:(ssGet('ag_tab')||'hsp');
+  const subs=SUBTABS[tab];
+  APP.tab=tab;
+  if(subs){
+    APP.sub=subs.some(s=>s[0]===h[1])?h[1]:(APP.subs[tab]||subs[0][0]);
+    APP.subs[tab]=APP.sub;
+  }else APP.sub=null;
+  ssSet('ag_tab',tab);
+  render();
+}
+function render(){
+  closePanel(true);
+  $('#nav').innerHTML=TABS.map(t=>'<a href="#'+t[0]+'" class="'+(APP.tab===t[0]?'on':'')+'">'+t[1]+'</a>').join('');
+  const subs=SUBTABS[APP.tab];
+  const sn=$('#subnav');
+  if(subs){
+    sn.classList.remove('hide');
+    sn.innerHTML='<div class="subnav-in">'+subs.map(s=>'<a href="#'+APP.tab+'/'+s[0]+'" class="'+(APP.sub===s[0]?'on':'')+'">'+s[1]+'</a>').join('')+'</div>';
+  }else sn.classList.add('hide');
+  if(!sb){$('#view').innerHTML=noConnHTML();return}
+  const pages={hsp:()=>pageGrupos('hsp'),odv:()=>pageGrupos('odv'),parceiros:pageParceiros,produtos:pageProdutos,despesas:pageDespesas};
+  pages[APP.tab]();
+}
+function noConnHTML(){
+  return '<div class="card empty"><p style="font-size:16px;font-weight:600;color:var(--tx);margin-bottom:6px">Ligação à base de dados não configurada</p><p style="margin-bottom:16px">Indique o URL e a chave anónima do seu projeto Supabase para começar.</p><button class="btn btn-p" data-act="settings">Configurar ligação</button></div>';
+}
+
+const CACHE={sg:{},parc:null,cat:{}};
+
+async function fetchAll(mk,max){
+  const out=[];
+  for(let from=0;;from+=1000){
+    const {data,error}=await mk().range(from,from+999);
+    if(error)throw error;
+    out.push(...data);
+    if(data.length<1000||out.length>=(max||20000))break;
+  }
+  return out;
+}
+async function loadSg(table,col){
+  const key=table+'.'+col;
+  if(CACHE.sg[key])return CACHE.sg[key];
+  try{
+    const {data,error}=await sb.from(table).select(col).not(col,'is',null).limit(1000);
+    if(error)throw error;
+    CACHE.sg[key]=[...new Set(data.map(r=>String(r[col]).trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt'));
+  }catch(e){CACHE.sg[key]=[]}
+  return CACHE.sg[key];
+}
+function dropSg(table){
+  Object.keys(CACHE.sg).forEach(k=>{if(k.startsWith(table+'.'))delete CACHE.sg[k]});
+}
+async function loadParc(){
+  if(CACHE.parc)return CACHE.parc;
+  try{
+    CACHE.parc=await fetchAll(()=>sb.from(tb('parceiros')).select('id,nome_empresa,cidades,marca,ativo').order('nome_empresa'));
+  }catch(e){CACHE.parc=[]}
+  return CACHE.parc;
+}
+async function loadCat(prodKey){
+  if(CACHE.cat[prodKey])return CACHE.cat[prodKey];
+  try{
+    CACHE.cat[prodKey]=await fetchAll(()=>sb.from(ENT[prodKey].table).select('*').eq('ativo',true).order(ENT[prodKey].sort[0]),3000);
+  }catch(e){CACHE.cat[prodKey]=[]}
+  return CACHE.cat[prodKey];
+}
+async function dbSave(ent,row,payload){
+  const t=sb.from(ent.table);
+  const r=row?await t.update(payload).eq(ent.pk,row[ent.pk]).select():await t.insert(payload).select();
+  if(r.error)throw r.error;
+  if(!r.data||!r.data.length)throw new Error('A operação não teve efeito. Verifique as permissões (RLS) da tabela.');
+  afterWrite(ent);
+  return r.data[0];
+}
+async function dbDel(ent,id){
+  const r=await sb.from(ent.table).delete().eq(ent.pk,id).select();
+  if(r.error)throw r.error;
+  if(!r.data||!r.data.length)throw new Error('Não foi possível eliminar. Verifique as permissões (RLS) da tabela.');
+  afterWrite(ent);
+}
+function afterWrite(ent){
+  dropSg(ent.table);
+  if(ent.table===ENT.parceiros.table)CACHE.parc=null;
+  CACHE.cat={};
+}
+
+const fx=t=>(k,l,o)=>Object.assign({k,l,t},o||{});
+const tx=fx('text'),em=fx('email'),tl=fx('tel'),nm=fx('num'),it=fx('int'),mo=fx('money'),dt=fx('date'),tm=fx('time'),ta=fx('textarea'),sl=fx('select'),cb=fx('combo'),bl=fx('bool'),ck=fx('check'),pa=fx('parceiro'),ro=fx('ro'),cl=fx('calc'),tg=fx('tags');
+const sec=l=>({t:'sec',l});
+const col=(k,l,f,o)=>Object.assign({k,l,f:f||'text'},o||{});
+
+const ESTADO_PAG=['Pago','Parcial','Pendente','Aguarda Pagamento','Cancelado'];
+const ESTADO_RES=['Confirmado','Pendente','Cancelado'];
+const SIM_NAO=['Sim','Nao','Em Espera'];
+const METODOS=['Transferência','MB Way','Multibanco','Cartão','Numerário','PayPal','Stripe','Revolut'];
+const REGIMES=['RE','Geral','Isento'];
+const FREQ=['Mensal','Trimestral','Semestral','Anual'];
+const ENVIO=['Pendente','Preparado','Enviado','Entregue','Cancelado'];
+const ENCOMENDA=['Pendente','Encomendado','Recebido','Enviado','Cancelado'];
+const CID={sg:['grupos','cidade']};
+const respF=t=>cb('responsavel','Responsável',{sg:[tb(t),'responsavel']});
+const calcV={total:v=>num(v.pvp)*num(v.quantidade)};
+const calcC={total:v=>num(v.preco_compra)*num(v.quantidade),em_falta:v=>num(v.total)-num(v.pago)};
+const compraTail=t=>[mo('pago','Pago'),cl('em_falta','Em falta'),dt('pagar_ate','Pagar até'),dt('data_pagamento','Data de pagamento'),bl('tem_fatura','Tem fatura'),cb('metodo_pagamento','Método de pagamento',{opts:METODOS,sg:[tb(t),'metodo_pagamento']}),respF(t)];
+const compraCols=extra=>[...extra,col('total','Total','money'),col('pago','Pago','money'),col('em_falta','Em falta','money',{neg:1}),col('pagar_ate','Pagar até','date'),col('tem_fatura','Fatura','bool')];
+
+const ENT={
+  grupos:{
+    table:tb('grupos'),pk:'id',label:'Grupo',sort:['data_inicio','desc'],
+    search:['nome_cliente','referencia','cidade'],
+    filters:[
+      {k:'estado',opts:[['','Todos os estados'],...ESTADO_PAG.map(x=>[x,x])],apply:(q,v)=>q.eq('estado_pagamento',v)},
+      {k:'periodo',opts:[['','Todas as datas'],['futuros','Início futuro'],['passados','Início passado']],apply:(q,v)=>v==='futuros'?q.gte('data_inicio',today()):q.lt('data_inicio',today())}
+    ],
+    fields:[
+      sec('Identificação'),
+      sl('marca','Marca',{opts:[['hsp','HenStag Portugal (HSP)'],['odv','Outlet das Viagens (ODV)']],req:1}),
+      tx('referencia','Referência',{req:1}),
+      sl('estado_pagamento','Estado de pagamento',{opts:ESTADO_PAG,def:'Pendente'}),
+      cb('tipo_grupo','Tipo de grupo',{sg:['grupos','tipo_grupo']}),
+      cb('origem_venda','Origem da venda',{sg:['grupos','origem_venda']}),
+      cb('fonte_lead','Fonte do lead',{sg:['grupos','fonte_lead']}),
+      cb('outlet_revendedor','Outlet / Revendedor',{sg:['grupos','outlet_revendedor']}),
+      sec('Cliente'),
+      tx('nome_cliente','Nome do cliente',{req:1}),
+      tl('telemovel','Telemóvel'),
+      em('email','Email'),
+      cb('pais_origem','País de origem',{sg:['grupos','pais_origem']}),
+      cb('cidade','Cidade',CID),
+      it('nr_participantes','Nº de participantes'),
+      sec('Datas e voos'),
+      dt('data_reserva','Data da reserva',{def:()=>today()}),
+      dt('data_inicio','Data de início'),
+      dt('data_fim','Data de fim'),
+      dt('proximo_pagamento','Próximo pagamento'),
+      tx('aeroporto_saida','Aeroporto de saída'),
+      tx('check_in_voo','Check-in do voo'),
+      sec('Faturação e condições'),
+      cb('regime_venda','Regime de venda',{opts:REGIMES,sg:['grupos','regime_venda']}),
+      mo('desconto','Desconto'),
+      bl('fatura','Fatura emitida'),
+      tx('fatura_nr','Fatura n.º'),
+      bl('confirmacao_parceiros','Parceiros confirmados'),
+      ta('incluido','Incluído'),
+      ta('info','Informações'),
+      ta('notas','Notas'),
+      sec('Financeiro (calculado)'),
+      ro('total','Total',{f:'money'}),
+      ro('pago','Pago',{f:'money'}),
+      ro('pago_pct','% pago',{f:'pct'}),
+      ro('em_falta','Em falta',{f:'money'}),
+      ro('total_sem_merch','Total sem merch',{f:'money'}),
+      ro('custo_sem_merch','Custo sem merch',{f:'money'}),
+      ro('lucro_bruto_re','Lucro bruto RE',{f:'money'}),
+      ro('lucro_bruto_re_pct','Lucro bruto RE %',{f:'pct'}),
+      ro('iva_sobre_lucro_re','IVA sobre lucro RE',{f:'money'}),
+      ro('lucro_liquido_re','Lucro líquido RE',{f:'money'}),
+      ro('merch_venda','Merch (venda)',{f:'money'}),
+      ro('custo_merch_c_iva','Custo merch c/ IVA',{f:'money'}),
+      ro('lucro_liquido_total','Lucro líquido total',{f:'money'}),
+      ro('trimestre','Trimestre'),
+      ro('mes_reserva','Mês da reserva')
+    ],
+    cols:[
+      col('referencia','Referência','text',{cls:'b'}),
+      col('nome_cliente','Cliente'),
+      col('cidade','Cidade'),
+      col('data_inicio','Início','date'),
+      col('data_fim','Fim','date'),
+      col('nr_participantes','Pax','int'),
+      col('total','Total','money'),
+      col('pago','Pago','money'),
+      col('em_falta','Em falta','money',{neg:1}),
+      col('estado_pagamento','Estado','badge')
+    ]
+  },
+
+  v_atividades:{
+    table:tb('vendas_atividades'),pk:'id',label:'Venda de atividade',add:'Adicionar Venda',
+    catalog:{prod:'p_atividades',map:{sku:'sku',produto_nome:'nome',pvp:'pvp',cidade:'cidade'}},
+    seed:g=>({cidade:g.cidade,data_atividade:g.data_inicio}),
+    calc:calcV,sum:['total'],
+    fields:[pa('parceiro_id','Parceiro'),cb('cidade','Cidade',CID),tx('produto_nome','Produto',{req:1}),tx('sku','SKU'),mo('pvp','PVP'),it('quantidade','Quantidade',{def:1}),dt('data_atividade','Data'),tm('hora_atividade','Hora'),bl('confirmacao_parceiro','Parceiro confirmado'),respF('vendas_atividades'),cl('total','Total')],
+    cols:[col('produto_nome','Produto'),col('sku','SKU'),col('cidade','Cidade'),col('parceiro_nome','Parceiro'),col('data_atividade','Data','date'),col('hora_atividade','Hora','time'),col('quantidade','Qtd.','int'),col('pvp','PVP','money'),col('total','Total','money'),col('confirmacao_parceiro','Confirmado','bool'),col('responsavel','Responsável')]
+  },
+  v_packs:{
+    table:tb('vendas_packs'),pk:'id',label:'Venda de pack',add:'Adicionar Venda',wide:1,
+    catalog:{prod:'p_packs',map:{sku:'sku',produto_nome:'nome',pvp:'pvp_pack',cidade:'cidade'}},
+    seed:g=>({cidade:g.cidade,data_at1:g.data_inicio}),
+    calc:calcV,sum:['total'],
+    fields:[cb('cidade','Cidade',CID),tx('produto_nome','Produto',{req:1}),tx('sku','SKU'),mo('pvp','PVP'),it('quantidade','Quantidade',{def:1}),bl('confirmacao_parceiros','Parceiros confirmados'),respF('vendas_packs'),cl('total','Total'),
+      sec('Atividade 1'),tx('sku_at_1','SKU atividade 1'),dt('data_at1','Data'),tm('hora_at1','Hora'),
+      sec('Atividade 2'),tx('sku_at_2','SKU atividade 2'),dt('data_at2','Data'),tm('hora_at2','Hora'),
+      sec('Atividade 3'),tx('sku_at_3','SKU atividade 3'),dt('data_at3','Data'),tm('hora_at3','Hora')],
+    cols:[col('produto_nome','Pack'),col('sku','SKU'),col('cidade','Cidade'),col('quantidade','Qtd.','int'),col('pvp','PVP','money'),col('total','Total','money'),col('data_at1','Atividade 1','date'),col('data_at2','Atividade 2','date'),col('data_at3','Atividade 3','date'),col('confirmacao_parceiros','Confirmado','bool'),col('responsavel','Responsável')]
+  },
+  v_alojamento:{
+    table:tb('vendas_alojamento'),pk:'id',label:'Venda de alojamento',add:'Adicionar Venda',wide:1,
+    catalog:{prod:'p_alojamento',map:{sku:'sku',produto_nome:'nome',cidade:'cidade',categoria:'categoria'}},
+    seed:g=>({cidade:g.cidade,data_checkin:g.data_inicio,data_checkout:g.data_fim,nr_pessoas:g.nr_participantes}),
+    calc:calcV,sum:['total'],
+    fields:[pa('parceiro_id','Parceiro'),cb('cidade','Cidade',CID),tx('produto_nome','Produto',{req:1}),tx('sku','SKU'),cb('categoria','Categoria',{sg:[tb('vendas_alojamento'),'categoria']}),mo('pvp','PVP'),it('quantidade','Quantidade',{def:1}),it('nr_pessoas','Nº de pessoas'),dt('data_checkin','Check-in'),dt('data_checkout','Check-out'),bl('pequeno_almoco','Pequeno-almoço'),mo('taxa_turistica','Taxa turística'),mo('caucao','Caução'),bl('confirmacao_parceiro','Parceiro confirmado'),respF('vendas_alojamento'),cl('total','Total')],
+    cols:[col('produto_nome','Alojamento'),col('parceiro_nome','Parceiro'),col('cidade','Cidade'),col('data_checkin','Check-in','date'),col('data_checkout','Check-out','date'),col('nr_pessoas','Pessoas','int'),col('quantidade','Qtd.','int'),col('pvp','PVP','money'),col('total','Total','money'),col('confirmacao_parceiro','Confirmado','bool')]
+  },
+  v_transfers:{
+    table:tb('vendas_transfers'),pk:'id',label:'Venda de transfer',add:'Adicionar Venda',wide:1,
+    catalog:{prod:'p_transfers',map:{sku:'sku',produto_nome:'nome',pvp:'pvp',cidade:'cidade'}},
+    seed:g=>({cidade:g.cidade,data_inicio:g.data_inicio,data_fim:g.data_fim,nr_pessoas:g.nr_participantes}),
+    calc:calcV,sum:['total'],
+    fields:[pa('parceiro_id','Parceiro'),cb('cidade','Cidade',CID),tx('produto_nome','Produto',{req:1}),tx('sku','SKU'),mo('pvp','PVP'),it('quantidade','Quantidade',{def:1}),it('nr_pessoas','Nº de pessoas'),tx('percurso','Percurso'),dt('data_inicio','Data de início'),tm('hora_inicio','Hora de início'),dt('data_fim','Data de fim'),tm('hora_fim','Hora de fim'),bl('confirmacao_parceiro','Parceiro confirmado'),respF('vendas_transfers'),cl('total','Total')],
+    cols:[col('produto_nome','Transfer'),col('parceiro_nome','Parceiro'),col('cidade','Cidade'),col('percurso','Percurso'),col('data_inicio','Data','date'),col('hora_inicio','Hora','time'),col('nr_pessoas','Pessoas','int'),col('quantidade','Qtd.','int'),col('pvp','PVP','money'),col('total','Total','money'),col('confirmacao_parceiro','Confirmado','bool')]
+  },
+  v_merch:{
+    table:tb('vendas_merch'),pk:'id',label:'Venda de merch',add:'Adicionar Venda',
+    catalog:{prod:'p_merch',map:{sku:'sku',produto_nome:'nome',pvp:'pvp'}},
+    seed:g=>({data_entrega:g.data_inicio}),
+    calc:calcV,sum:['total'],
+    fields:[pa('parceiro_id','Parceiro'),tx('produto_nome','Produto',{req:1}),tx('sku','SKU'),mo('pvp','PVP'),it('quantidade','Quantidade',{def:1}),dt('data_entrega','Data de entrega'),tx('local_entrega','Local de entrega'),cb('estado_envio_cliente','Envio ao cliente',{opts:ENVIO}),cb('estado_envio_parceiro','Envio do parceiro',{opts:ENVIO}),dt('enviar_ate','Enviar até'),cl('total','Total')],
+    cols:[col('produto_nome','Produto'),col('sku','SKU'),col('parceiro_nome','Parceiro'),col('quantidade','Qtd.','int'),col('pvp','PVP','money'),col('total','Total','money'),col('data_entrega','Entrega','date'),col('local_entrega','Local'),col('estado_envio_cliente','Envio cliente','badge'),col('estado_envio_parceiro','Envio parceiro','badge'),col('enviar_ate','Enviar até','date')]
+  },
+  v_odv:{
+    table:tb('vendas_odv'),pk:'id',label:'Venda ODV',add:'Adicionar Venda',
+    catalog:{prod:'p_odv',map:{codigo_produto:'codigo',servico:'nome'}},
+    seed:g=>({cidade:g.cidade,regime:g.regime_venda}),
+    calc:{total:v=>num(v.preco)*num(v.quantidade)-num(v.desconto)},sum:['total'],
+    fields:[cb('cidade','Cidade',CID),tx('servico','Serviço',{req:1}),tx('codigo_produto','Código do produto'),ta('detalhe','Detalhe'),it('quantidade','Quantidade',{def:1}),mo('preco','Preço'),mo('desconto','Desconto'),cb('regime','Regime',{opts:REGIMES}),bl('confirmacao','Confirmado'),cl('total','Total')],
+    cols:[col('servico','Serviço'),col('codigo_produto','Código'),col('cidade','Cidade'),col('detalhe','Detalhe'),col('quantidade','Qtd.','int'),col('preco','Preço','money'),col('desconto','Desconto','money'),col('regime','Regime'),col('total','Total','money'),col('confirmacao','Confirmado','bool')]
+  },
+
+  c_atividades:{
+    table:tb('compras_atividades'),pk:'id',label:'Compra de atividade',add:'Adicionar Compra',wide:1,
+    catalog:{prod:'p_atividades',map:{sku:'sku',produto_nome:'nome',preco_compra:'preco_compra',cidade:'cidade'}},
+    seed:g=>({cidade:g.cidade,data_atividade:g.data_inicio}),
+    calc:calcC,sum:['total','pago','em_falta'],
+    fields:[pa('parceiro_id','Parceiro'),cb('cidade','Cidade',CID),tx('produto_nome','Produto',{req:1}),tx('sku','SKU'),mo('preco_compra','Preço de compra'),it('quantidade','Quantidade',{def:1}),dt('data_atividade','Data'),tm('hora_atividade','Hora'),sl('estado_reserva','Estado da reserva',{opts:ESTADO_RES,def:'Pendente'}),cl('total','Total'),...compraTail('compras_atividades')],
+    cols:compraCols([col('produto_nome','Produto'),col('parceiro_nome','Parceiro'),col('data_atividade','Data','date'),col('estado_reserva','Estado','badge'),col('quantidade','Qtd.','int'),col('preco_compra','Preço','money')])
+  },
+  c_alojamento:{
+    table:tb('compras_alojamento'),pk:'id',label:'Compra de alojamento',add:'Adicionar Compra',wide:1,
+    catalog:{prod:'p_alojamento',map:{sku:'sku',produto_nome:'nome',cidade:'cidade',categoria:'categoria'}},
+    seed:g=>({cidade:g.cidade,data_checkin:g.data_inicio,data_checkout:g.data_fim,nr_pessoas:g.nr_participantes}),
+    calc:calcC,sum:['total','pago','em_falta'],
+    fields:[pa('parceiro_id','Parceiro'),cb('cidade','Cidade',CID),tx('produto_nome','Produto',{req:1}),tx('sku','SKU'),cb('categoria','Categoria',{sg:[tb('compras_alojamento'),'categoria']}),mo('preco_compra','Preço de compra'),it('quantidade','Quantidade',{def:1}),it('nr_pessoas','Nº de pessoas'),dt('data_checkin','Check-in'),dt('data_checkout','Check-out'),bl('pequeno_almoco','Pequeno-almoço'),mo('taxa_turistica','Taxa turística'),mo('caucao','Caução'),sl('estado_reserva','Estado da reserva',{opts:ESTADO_RES,def:'Pendente'}),cl('total','Total'),...compraTail('compras_alojamento')],
+    cols:compraCols([col('produto_nome','Alojamento'),col('parceiro_nome','Parceiro'),col('data_checkin','Check-in','date'),col('data_checkout','Check-out','date'),col('estado_reserva','Estado','badge'),col('preco_compra','Preço','money')])
+  },
+  c_transfers:{
+    table:tb('compras_transfers'),pk:'id',label:'Compra de transfer',add:'Adicionar Compra',wide:1,
+    catalog:{prod:'p_transfers',map:{sku:'sku',produto_nome:'nome',preco_compra:'preco_compra',cidade:'cidade'}},
+    seed:g=>({cidade:g.cidade,data_inicio:g.data_inicio,data_fim:g.data_fim,nr_pessoas:g.nr_participantes}),
+    calc:calcC,sum:['total','pago','em_falta'],
+    fields:[pa('parceiro_id','Parceiro'),cb('cidade','Cidade',CID),tx('produto_nome','Produto',{req:1}),tx('sku','SKU'),mo('preco_compra','Preço de compra'),it('quantidade','Quantidade',{def:1}),it('nr_pessoas','Nº de pessoas'),tx('percurso','Percurso'),dt('data_inicio','Data de início'),tm('hora_inicio','Hora de início'),dt('data_fim','Data de fim'),tm('hora_fim','Hora de fim'),sl('estado_reserva','Estado da reserva',{opts:ESTADO_RES,def:'Pendente'}),cl('total','Total'),...compraTail('compras_transfers')],
+    cols:compraCols([col('produto_nome','Transfer'),col('parceiro_nome','Parceiro'),col('percurso','Percurso'),col('data_inicio','Data','date'),col('hora_inicio','Hora','time'),col('estado_reserva','Estado','badge'),col('preco_compra','Preço','money')])
+  },
+  c_merch:{
+    table:tb('compras_merch'),pk:'id',label:'Compra de merch',add:'Adicionar Compra',wide:1,
+    catalog:{prod:'p_merch',map:{sku:'sku',produto_nome:'nome',preco_unitario:'preco_compra_s_iva'}},
+    calc:{total_c_iva:v=>{const t=num(v.taxa_iva);return num(v.preco_unitario)*num(v.quantidade)*(1+(t>1?t/100:t))},em_falta:v=>num(v.total_c_iva)-num(v.pago)},
+    sum:['total_c_iva','pago','em_falta'],
+    fields:[pa('parceiro_id','Parceiro'),tx('produto_nome','Produto',{req:1}),tx('sku','SKU'),mo('preco_unitario','Preço unitário'),it('quantidade','Quantidade',{def:1}),nm('taxa_iva','Taxa de IVA'),cl('total_c_iva','Total c/ IVA'),dt('chega_ate','Chega até'),cb('estado_encomenda','Estado da encomenda',{opts:ENCOMENDA,def:'Pendente'}),...compraTail('compras_merch')],
+    cols:[col('produto_nome','Produto'),col('parceiro_nome','Parceiro'),col('quantidade','Qtd.','int'),col('preco_unitario','Preço un.','money'),col('taxa_iva','IVA','num'),col('total_c_iva','Total c/ IVA','money'),col('estado_encomenda','Estado','badge'),col('chega_ate','Chega até','date'),col('pago','Pago','money'),col('em_falta','Em falta','money',{neg:1}),col('pagar_ate','Pagar até','date'),col('tem_fatura','Fatura','bool')]
+  },
+  c_odv:{
+    table:tb('compras_odv'),pk:'id',label:'Compra ODV',add:'Adicionar Compra',wide:1,
+    seed:g=>({cidade:g.cidade,regime:g.regime_venda,nr_pessoas:g.nr_participantes}),
+    calc:{total:v=>num(v.preco)*num(v.quantidade),em_falta:v=>num(v.total)-num(v.pago)},sum:['total','pago','em_falta'],
+    fields:[pa('parceiro_id','Parceiro'),cb('cidade','Cidade',CID),cb('tipo','Tipo',{sg:[tb('compras_odv'),'tipo']}),tx('servico','Serviço',{req:1}),it('quantidade','Quantidade',{def:1}),mo('preco','Preço'),it('nr_pessoas','Nº de pessoas'),cb('regime','Regime',{opts:REGIMES}),cl('total','Total'),mo('pago','Pago'),cl('em_falta','Em falta'),dt('pagar_ate','Pagar até'),dt('data_pagamento','Data de pagamento'),bl('confirmacao_parceiro','Parceiro confirmado'),sl('tem_fatura','Tem fatura',{opts:SIM_NAO}),cb('metodo_pagamento','Método de pagamento',{opts:METODOS,sg:[tb('compras_odv'),'metodo_pagamento']}),respF('compras_odv')],
+    cols:[col('servico','Serviço'),col('tipo','Tipo'),col('parceiro_nome','Parceiro'),col('cidade','Cidade'),col('quantidade','Qtd.','int'),col('preco','Preço','money'),col('total','Total','money'),col('pago','Pago','money'),col('em_falta','Em falta','money',{neg:1}),col('pagar_ate','Pagar até','date'),col('confirmacao_parceiro','Confirmado','bool'),col('tem_fatura','Fatura','badge')]
+  },
+
+  pagamentos:{
+    table:tb('pagamentos_cliente'),pk:'id',label:'Pagamento',add:'Adicionar Pagamento',sum:['valor'],
+    seed:g=>({regime:g.regime_venda}),
+    fields:[mo('valor','Valor',{req:1}),cb('forma_pagamento','Forma de pagamento',{opts:METODOS,sg:[tb('pagamentos_cliente'),'forma_pagamento']}),tx('codigo_venda_site','Código de venda (site)'),dt('data_pagamento','Data de pagamento',{def:()=>today()}),bl('tem_fatura','Tem fatura'),cb('regime','Regime',{opts:REGIMES}),tx('fatura_nr','Fatura n.º')],
+    cols:[col('data_pagamento','Data','date'),col('valor','Valor','money'),col('forma_pagamento','Forma de pagamento'),col('codigo_venda_site','Código site'),col('regime','Regime'),col('tem_fatura','Fatura','bool'),col('fatura_nr','Fatura n.º')]
+  },
+  reembolsos:{
+    table:tb('reembolsos'),pk:'id',label:'Reembolso',add:'Adicionar Reembolso',sum:['valor'],
+    seed:g=>({regime:g.regime_venda}),
+    fields:[mo('valor','Valor',{req:1}),cb('forma_reembolso','Forma de reembolso',{opts:METODOS,sg:[tb('reembolsos'),'forma_reembolso']}),tx('codigo_reembolso_site','Código de reembolso (site)'),dt('data_reembolso','Data do reembolso',{def:()=>today()}),cb('regime','Regime',{opts:REGIMES}),bl('faturado','Faturado'),tx('fatura_nr','Fatura n.º')],
+    cols:[col('data_reembolso','Data','date'),col('valor','Valor','money'),col('forma_reembolso','Forma de reembolso'),col('codigo_reembolso_site','Código site'),col('regime','Regime'),col('faturado','Faturado','bool'),col('fatura_nr','Fatura n.º')]
+  },
+
+  parceiros:{
+    table:tb('parceiros'),pk:'id',label:'Parceiro',wide:1,sort:['nome_empresa','asc'],
+    search:['nome_empresa','cidades','categoria','nome_responsavel','email','telemovel'],
+    filters:[
+      {k:'ativo',opts:[['','Todos'],['1','Ativos'],['0','Inativos']],apply:(q,v)=>q.eq('ativo',v==='1')},
+      {k:'marca',opts:[['','Todas as marcas'],['hsp','HSP'],['odv','ODV']],apply:(q,v)=>q.contains('marca',[v])},
+      {k:'categoria',opts:[['','Todas as categorias']],optsFrom:['parceiros','categoria'],apply:(q,v)=>q.eq('categoria',v)}
+    ],
+    fields:[
+      sec('Empresa'),
+      tx('nome_empresa','Nome da empresa',{req:1}),
+      cb('categoria','Categoria',{sg:['parceiros','categoria']}),
+      tx('cidades','Cidades'),
+      tg('marca','Marcas',{opts:[['hsp','HSP'],['odv','ODV']],def:()=>[]}),
+      ck('ativo','Parceiro ativo',{def:true}),
+      sec('Contactos'),
+      tx('nome_responsavel','Nome do responsável'),
+      em('email','Email'),em('email_2','Email 2'),
+      tl('telemovel','Telemóvel'),tl('telemovel_2','Telemóvel 2'),
+      sec('Reservas e pagamentos'),
+      cb('modalidade_reservas','Modalidade de reservas',{sg:['parceiros','modalidade_reservas']}),
+      tx('codigo_site','Código no site'),
+      cb('modalidade_pagamento','Modalidade de pagamento',{sg:['parceiros','modalidade_pagamento']}),
+      tx('nome_fiscal','Nome fiscal'),
+      tx('iban','IBAN'),
+      ta('politica_cancelamento','Política de cancelamento'),
+      ta('notas','Notas')
+    ],
+    cols:[col('nome_empresa','Empresa','text',{cls:'b'}),col('cidades','Cidades'),col('categoria','Categoria'),col('nome_responsavel','Responsável'),col('email','Email'),col('telemovel','Telemóvel'),col('ativo','Ativo','sw')]
+  },
+
+  p_atividades:{
+    table:tb('produtos_atividades'),pk:'id',label:'Atividade',sort:['nome','asc'],search:['sku','nome','cidade'],filters:[ATIVO_F()],
+    fields:[tx('sku','SKU',{req:1}),tx('nome','Nome',{req:1}),cb('cidade','Cidade',CID),mo('pvp','PVP'),mo('preco_compra','Preço de compra'),ck('ativo','Ativo',{def:true})],
+    cols:[col('sku','SKU','text',{cls:'b'}),col('nome','Nome'),col('cidade','Cidade'),col('pvp','PVP','money'),col('preco_compra','Preço compra','money'),col('ativo','Ativo','sw')]
+  },
+  p_packs:{
+    table:tb('produtos_packs'),pk:'id',label:'Pack',sort:['nome','asc'],search:['sku','nome','cidade'],filters:[ATIVO_F()],
+    fields:[tx('sku','SKU',{req:1}),tx('nome','Nome',{req:1}),cb('cidade','Cidade',CID),mo('pvp_pack','PVP do pack'),ck('ativo','Ativo',{def:true})],
+    cols:[col('sku','SKU','text',{cls:'b'}),col('nome','Nome'),col('cidade','Cidade'),col('pvp_pack','PVP pack','money'),col('ativo','Ativo','sw')]
+  },
+  p_alojamento:{
+    table:tb('produtos_alojamento'),pk:'id',label:'Alojamento',sort:['nome','asc'],search:['sku','nome','cidade','categoria'],filters:[ATIVO_F()],
+    fields:[tx('sku','SKU',{req:1}),tx('nome','Nome',{req:1}),cb('cidade','Cidade',CID),cb('categoria','Categoria',{sg:[tb('produtos_alojamento'),'categoria']}),mo('preco_minimo','Preço mínimo'),mo('preco_maximo','Preço máximo'),ck('ativo','Ativo',{def:true})],
+    cols:[col('sku','SKU','text',{cls:'b'}),col('nome','Nome'),col('cidade','Cidade'),col('categoria','Categoria'),col('preco_minimo','Preço mín.','money'),col('preco_maximo','Preço máx.','money'),col('ativo','Ativo','sw')]
+  },
+  p_transfers:{
+    table:tb('produtos_transfers'),pk:'id',label:'Transfer',sort:['nome','asc'],search:['sku','nome','cidade'],filters:[ATIVO_F()],
+    fields:[tx('sku','SKU',{req:1}),tx('nome','Nome',{req:1}),cb('cidade','Cidade',CID),mo('pvp','PVP'),mo('preco_compra','Preço de compra'),ck('ativo','Ativo',{def:true})],
+    cols:[col('sku','SKU','text',{cls:'b'}),col('nome','Nome'),col('cidade','Cidade'),col('pvp','PVP','money'),col('preco_compra','Preço compra','money'),col('ativo','Ativo','sw')]
+  },
+  p_merch:{
+    table:tb('produtos_merch'),pk:'id',label:'Merch',sort:['nome','asc'],search:['sku','nome'],filters:[ATIVO_F()],
+    fields:[tx('sku','SKU',{req:1}),tx('nome','Nome',{req:1}),mo('pvp','PVP'),mo('preco_compra_s_iva','Preço de compra s/ IVA'),ck('ativo','Ativo',{def:true})],
+    cols:[col('sku','SKU','text',{cls:'b'}),col('nome','Nome'),col('pvp','PVP','money'),col('preco_compra_s_iva','Compra s/ IVA','money'),col('ativo','Ativo','sw')]
+  },
+  p_odv:{
+    table:tb('produtos_odv'),pk:'id',label:'Produto ODV',sort:['nome','asc'],search:['codigo','nome'],filters:[ATIVO_F()],
+    fields:[tx('codigo','Código',{req:1}),tx('nome','Nome',{req:1}),ck('ativo','Ativo',{def:true})],
+    cols:[col('codigo','Código','text',{cls:'b'}),col('nome','Nome'),col('ativo','Ativo','sw')]
+  },
+
+  despesas:{
+    table:tb('despesas'),pk:'id',label:'Despesa',sort:['data_pagamento','desc'],search:['empresa','tipo_despesa','notas','conta','forma_pagamento'],
+    filters:[
+      {k:'tipo',opts:[['','Todos os tipos']],optsFrom:['despesas','tipo_despesa'],apply:(q,v)=>q.eq('tipo_despesa',v)},
+      {k:'fatura',opts:[['','Fatura: todas'],['1','Com fatura'],['0','Sem fatura']],apply:(q,v)=>q.eq('tem_fatura',v==='1')}
+    ],
+    fields:[
+      cb('empresa','Empresa',{sg:[tb('despesas'),'empresa']}),
+      cb('tipo_despesa','Tipo de despesa',{sg:[tb('despesas'),'tipo_despesa'],req:1}),
+      mo('valor','Valor',{req:1}),
+      bl('com_iva','Valor com IVA'),
+      dt('data_pagamento','Data de pagamento',{def:()=>today()}),
+      cb('forma_pagamento','Forma de pagamento',{opts:METODOS,sg:[tb('despesas'),'forma_pagamento']}),
+      bl('tem_fatura','Tem fatura'),
+      cb('conta','Conta',{sg:[tb('despesas'),'conta']}),
+      ta('notas','Notas'),
+      sec('Calculado'),
+      ro('iva_dedutivel','IVA dedutível',{f:'money'}),
+      ro('montante_liquido','Montante líquido',{f:'money'}),
+      ro('mes','Mês')
+    ],
+    cols:[col('data_pagamento','Data','date'),col('empresa','Empresa','text',{cls:'b'}),col('tipo_despesa','Tipo'),col('valor','Valor','money'),col('com_iva','C/ IVA','bool'),col('forma_pagamento','Pagamento'),col('tem_fatura','Fatura','bool'),col('conta','Conta'),col('montante_liquido','Líquido','money'),col('notas','Notas')]
+  },
+  despesas_fixas:{
+    table:tb('despesas_fixas'),pk:'id',label:'Despesa fixa',sort:['empresa','asc'],search:['empresa','tipo_despesa','notas'],
+    filters:[
+      {k:'tipo',opts:[['','Todos os tipos']],optsFrom:['despesas_fixas','tipo_despesa'],apply:(q,v)=>q.eq('tipo_despesa',v)},
+      {k:'freq',opts:[['','Todas as frequências'],...FREQ.map(x=>[x,x])],apply:(q,v)=>q.eq('frequencia',v)}
+    ],
+    fields:[
+      cb('empresa','Empresa',{sg:[tb('despesas_fixas'),'empresa']}),
+      cb('tipo_despesa','Tipo de despesa',{sg:[tb('despesas_fixas'),'tipo_despesa'],req:1}),
+      mo('valor_total','Valor total',{req:1}),
+      bl('com_iva','Valor com IVA'),
+      cb('frequencia','Frequência',{opts:FREQ,sg:[tb('despesas_fixas'),'frequencia']}),
+      dt('valido_ate','Válido até'),
+      ta('notas','Notas'),
+      sec('Calculado'),
+      ro('custo_mensal','Custo mensal',{f:'money'}),
+      ro('custo_mensal_c_iva','Custo mensal c/ IVA',{f:'money'}),
+      ro('iva_retido_mensal','IVA retido mensal',{f:'money'})
+    ],
+    cols:[col('empresa','Empresa','text',{cls:'b'}),col('tipo_despesa','Tipo'),col('valor_total','Valor total','money'),col('com_iva','C/ IVA','bool'),col('frequencia','Frequência'),col('custo_mensal','Custo mensal','money'),col('custo_mensal_c_iva','Mensal c/ IVA','money'),col('iva_retido_mensal','IVA retido','money'),col('valido_ate','Válido até','date')]
+  }
+};
+
+function ATIVO_F(){
+  return {k:'ativo',opts:[['','Todos'],['1','Ativos'],['0','Inativos']],apply:(q,v)=>q.eq('ativo',v==='1')};
+}
+
+const SUBS={
+  vendas:{
+    hsp:[['atividades','Atividades','v_atividades'],['packs','Packs','v_packs'],['alojamento','Alojamento','v_alojamento'],['transfers','Transfers','v_transfers'],['merch','Merch','v_merch']],
+    odv:[['odv','Vendas ODV','v_odv']]
+  },
+  compras:{
+    hsp:[['atividades','Atividades','c_atividades'],['alojamento','Alojamento','c_alojamento'],['transfers','Transfers','c_transfers'],['merch','Merch','c_merch']],
+    odv:[['odv','Compras ODV','c_odv']]
+  }
+};
+const SUBTABS={
+  produtos:[['atividades','Atividades','p_atividades'],['packs','Packs','p_packs'],['alojamento','Alojamento','p_alojamento'],['transfers','Transfers','p_transfers'],['merch','Merch','p_merch'],['odv','ODV','p_odv']],
+  despesas:[['pagamentos','Pagamentos','despesas'],['fixas','Fixas','despesas_fixas']]
+};
+const GRUPO_TABS=[['info','Info'],['vendas','Vendas'],['compras','Compras'],['pagamentos','Pagamentos'],['reembolsos','Reembolsos']];
+
+const BADGE={
+  'pago':'b-ok','confirmado':'b-ok','sim':'b-ok','entregue':'b-ok','recebido':'b-ok','ativo':'b-ok',
+  'parcial':'b-warn','em espera':'b-warn','encomendado':'b-warn','preparado':'b-warn','enviado':'b-def',
+  'pendente':'b-err',
+  'aguarda pagamento':'b-pur',
+  'cancelado':'b-mut','nao':'b-mut','não':'b-mut','inativo':'b-mut',
+  'hsp':'b-hsp','odv':'b-odv'
+};
+function badge(v){
+  if(v==null||v==='')return '<span class="muted">—</span>';
+  const c=BADGE[String(v).trim().toLowerCase()]||'b-def';
+  return '<span class="badge '+c+'">'+esc(v)+'</span>';
+}
+
+function toast(msg,type){
+  const el=document.createElement('div');
+  el.className='toast '+(type||'success');
+  el.textContent=msg;
+  $('#toasts').appendChild(el);
+  setTimeout(()=>{el.style.transition='opacity .3s';el.style.opacity='0';setTimeout(()=>el.remove(),320)},type==='error'?5000:3000);
+}
+function syncLock(){
+  document.body.classList.toggle('lock',!!$('#modals').children.length||!!$('#panel-root').children.length);
+}
+function openModal(html,o){
+  o=o||{};
+  const ov=document.createElement('div');
+  ov.className='ov';
+  ov.innerHTML='<div class="modal '+(o.cls||'')+'" role="dialog" aria-modal="true">'+html+'</div>';
+  $('#modals').appendChild(ov);
+  let closed=false;
+  const api={el:ov,box:ov.firstElementChild,close(){
+    if(closed)return;
+    closed=true;
+    ov.remove();
+    syncLock();
+    if(o.onClose)o.onClose();
+  }};
+  if(!o.sticky)ov.addEventListener('mousedown',e=>{if(e.target===ov)api.close()});
+  $$('[data-close]',ov).forEach(b=>b.addEventListener('click',()=>api.close()));
+  syncLock();
+  return api;
+}
+function confirmDlg(o){
+  return new Promise(res=>{
+    const m=openModal('<div class="modal-h"><h3>'+esc(o.title||'Confirmar')+'</h3></div><div class="modal-b"><p style="color:var(--mut2)">'+esc(o.msg||'')+'</p></div><div class="modal-f"><button class="btn btn-g" data-no>Cancelar</button><button class="btn '+(o.danger===false?'btn-p':'btn-d')+'" data-yes>'+esc(o.ok||'Eliminar')+'</button></div>',{cls:'sm',sticky:true,onClose:()=>res(false)});
+    $('[data-no]',m.box).onclick=()=>m.close();
+    $('[data-yes]',m.box).onclick=()=>{res(true);m.close()};
+    $('[data-yes]',m.box).focus();
+  });
+}
+function setBusy(btn,on){
+  if(!btn)return;
+  btn.disabled=on;
+  btn.classList.toggle('busy',on);
+}
+
+function cellHTML(c,r,o){
+  if(c.render)return c.render(r);
+  const v=r[c.k];
+  switch(c.f){
+    case 'money':return fmtEur(v);
+    case 'date':return esc(fmtDate(v));
+    case 'time':return v?esc(String(v).slice(0,5)):'—';
+    case 'int':case 'num':return fmtNum(v);
+    case 'badge':return badge(v);
+    case 'bool':{const b=boolish(v);return b==null?'<span class="muted">—</span>':badge(b?'Sim':'Não')}
+    case 'sw':return '<label class="sw" data-act="noop"><input type="checkbox" data-act="toggle" data-key="'+esc(o.key)+'" data-id="'+esc(r[o.pk||'id'])+'" data-k="'+c.k+'"'+(v?' checked':'')+'><span></span></label>';
+    default:return v==null||v===''?'<span class="muted">—</span>':'<span class="tr" title="'+esc(v)+'">'+esc(v)+'</span>';
+  }
+}
+const RIGHT={money:1,int:1,num:1};
+function tableHTML(cols,rows,o){
+  const ids=(o.key?' data-key="'+esc(o.key)+'"':'')+(o.ek?' data-ek="'+esc(o.ek)+'"':'');
+  const pk=o.pk||'id';
+  const th=cols.map(c=>{
+    const cls=[];
+    if(RIGHT[c.f])cls.push('r');
+    let at='';
+    const sortable=o.sortable&&c.s!==false&&!c.render;
+    if(sortable){cls.push('srt');if(o.sortK===c.k)cls.push('on');at=' data-act="sort"'+ids+' data-k="'+c.k+'"'}
+    const ar=sortable&&o.sortK===c.k?'<i class="ar">'+(o.sortDir==='asc'?'▲':'▼')+'</i>':'';
+    return '<th class="'+cls.join(' ')+'"'+at+'>'+esc(c.l)+ar+'</th>';
+  }).join('')+(o.actions?'<th></th>':'');
+  const body=rows.map(r=>{
+    const id=r[pk];
+    const tds=cols.map(c=>'<td class="'+(RIGHT[c.f]?'r ':'')+(c.cls||'')+(c.neg&&num(r[c.k])>0?' neg':'')+'">'+cellHTML(c,r,o)+'</td>').join('');
+    const act=o.actions?'<td class="acts"><div>'+o.actions.map(a=>'<button class="ib '+(a[3]||'')+'" title="'+a[2]+'" data-act="'+a[0]+'"'+ids+' data-id="'+esc(id)+'">'+ico(a[1])+'</button>').join('')+'</div></td>':'';
+    return '<tr'+(o.rowAct?' class="clk" data-act="'+o.rowAct+'"'+ids+' data-id="'+esc(id)+'"':'')+'>'+tds+act+'</tr>';
+  }).join('');
+  return '<div class="tw"><table class="tbl"><thead><tr>'+th+'</tr></thead><tbody>'+body+'</tbody></table></div>';
+}
+function pagerHTML(c){
+  const st=c.st;
+  if(!st.count)return '';
+  const pages=Math.max(1,Math.ceil(st.count/PAGE));
+  const from=(st.page-1)*PAGE+1,to=Math.min(st.count,st.page*PAGE);
+  const nums=[];
+  for(let p=1;p<=pages;p++){
+    if(p===1||p===pages||Math.abs(p-st.page)<=1)nums.push(p);
+    else if(nums[nums.length-1]!=='…')nums.push('…');
+  }
+  const btn=(p,l,dis,on)=>'<button class="pg-b'+(on?' on':'')+'"'+(dis?' disabled':'')+' data-act="page" data-key="'+esc(c.key)+'" data-p="'+p+'">'+l+'</button>';
+  return '<div class="pager"><span>A mostrar '+from+'–'+to+' de '+st.count+'</span><div class="pg-n">'+btn(st.page-1,'‹',st.page<=1)+nums.map(n=>n==='…'?'<span class="muted" style="padding:0 4px">…</span>':btn(n,n,false,n===st.page)).join('')+btn(st.page+1,'›',st.page>=pages)+'</div></div>';
+}
+function errBox(e){return '<div class="empty err">Erro ao carregar dados: '+esc(errMsg(e))+'</div>'}
+function spinHTML(){return '<div class="pn-load"><div class="spin"></div></div>'}
+
+const ST={};
+const LISTS={};
+function newState(ent,f){
+  return {q:'',f:f||{},page:1,sortK:ent.sort[0],sortDir:ent.sort[1],rows:[],count:0};
+}
+function cleanSearch(s){return String(s||'').replace(/[,()*%\\"']/g,' ').replace(/\s+/g,' ').trim()}
+function applyAll(q,c){
+  const ent=c.ent,st=c.st;
+  if(c.extra)q=c.extra(q);
+  const s=cleanSearch(st.q);
+  if(s&&ent.search&&ent.search.length)q=q.or(ent.search.map(k=>k+'.ilike.*'+s+'*').join(','));
+  (ent.filters||[]).forEach(f=>{
+    const v=st.f[f.k];
+    if(v!==undefined&&v!=='')q=f.apply(q,v);
+  });
+  return q;
+}
+function filterHTML(c,f){
+  const cur=c.st.f[f.k]===undefined?'':c.st.f[f.k];
+  return '<select class="inp sel" data-lf="'+esc(c.key)+'" data-fk="'+f.k+'">'+(f.opts||[]).map(o=>'<option value="'+esc(o[0])+'"'+(String(o[0])===String(cur)?' selected':'')+'>'+esc(o[1])+'</option>').join('')+'</select>';
+}
+function kpiHTML(defs,vals){
+  return defs.map((d,i)=>'<div class="kpi '+(d.cls||'')+'"><div class="kpi-l">'+esc(d.l)+'</div><div class="kpi-v">'+(vals?(d.f==='money'?fmtEur(vals[i]):fmtNum(vals[i])):'—')+'</div></div>').join('');
+}
+function mountList(host,c){
+  LISTS[c.key]=c;
+  const ent=c.ent;
+  const filt=(ent.filters||[]).map(f=>filterHTML(c,f)).join('');
+  host.innerHTML=
+    '<div class="pg-head"><div><h1 class="pg-t">'+esc(c.title)+'</h1>'+(c.sub?'<p class="pg-s">'+esc(c.sub)+'</p>':'')+'</div><div class="pg-act">'+(c.createLabel?'<button class="btn btn-p" data-act="list-new" data-key="'+esc(c.key)+'">'+ico('plus')+esc(c.createLabel)+'</button>':'')+'</div></div>'+
+    (c.kpis?'<div class="kpis" id="kpi-'+esc(c.key)+'">'+kpiHTML(c.kpis)+'</div>':'')+
+    '<div class="card"><div class="toolbar"><div class="srch">'+ico('search')+'<input class="inp" data-lq="'+esc(c.key)+'" placeholder="'+esc(c.ph||'Pesquisar…')+'" value="'+esc(c.st.q)+'" autocomplete="off"></div>'+filt+'<span class="cnt-t" id="cnt-'+esc(c.key)+'"></span></div><div id="tbl-'+esc(c.key)+'" class="loadable">'+spinHTML()+'</div></div>';
+  (ent.filters||[]).filter(f=>f.optsFrom).forEach(f=>{
+    loadSg(f.optsFrom[0]===ent.table?ent.table:tb(f.optsFrom[0]),f.optsFrom[1]).then(list=>{
+      const s=host.querySelector('[data-lf="'+c.key+'"][data-fk="'+f.k+'"]');
+      if(!s)return;
+      const cur=c.st.f[f.k]||'';
+      const opts=[['',f.opts[0][1]]].concat(list.map(x=>[x,x]));
+      if(cur&&!list.includes(cur))opts.push([cur,cur]);
+      s.innerHTML=opts.map(o=>'<option value="'+esc(o[0])+'"'+(o[0]===cur?' selected':'')+'>'+esc(o[1])+'</option>').join('');
+    });
+  });
+  c.reload=()=>loadList(c);
+  loadList(c);
+}
+async function loadList(c){
+  const tok=c.tok=(c.tok||0)+1;
+  const key=c.key;
+  const box=document.getElementById('tbl-'+key);
+  if(!box)return;
+  if(!sb){box.innerHTML=noConnHTML();return}
+  box.classList.add('loading');
+  let q=sb.from(c.ent.table).select('*',{count:'exact'});
+  q=applyAll(q,c);
+  q=q.order(c.st.sortK,{ascending:c.st.sortDir==='asc',nullsFirst:false});
+  if(c.st.sortK!==c.ent.pk)q=q.order(c.ent.pk,{ascending:false});
+  const from=(c.st.page-1)*PAGE;
+  let res;
+  try{res=await q.range(from,from+PAGE-1)}catch(e){res={error:e}}
+  if(tok!==c.tok)return;
+  const b=document.getElementById('tbl-'+key);
+  if(!b)return;
+  b.classList.remove('loading');
+  if(res.error){
+    b.innerHTML=errBox(res.error);
+    return;
+  }
+  const count=res.count||0;
+  if(!res.data.length&&c.st.page>1&&count>0){
+    c.st.page=Math.max(1,Math.ceil(count/PAGE));
+    return loadList(c);
+  }
+  c.st.rows=res.data;
+  c.st.count=count;
+  const cnt=document.getElementById('cnt-'+key);
+  if(cnt)cnt.textContent=count+' registo'+(count===1?'':'s');
+  if(!res.data.length){
+    const filtered=cleanSearch(c.st.q)||Object.values(c.st.f).some(v=>v!=='');
+    b.innerHTML='<div class="empty">'+(filtered?'Nenhum resultado para os filtros aplicados.':'Sem dados para mostrar.')+'</div>';
+  }else{
+    const actions=c.actions||[['row-edit','edit','Editar'],['row-del','trash','Eliminar','danger']];
+    b.innerHTML=tableHTML(c.ent.cols,res.data,{key,pk:c.ent.pk,sortable:true,sortK:c.st.sortK,sortDir:c.st.sortDir,rowAct:'list-open',actions})+pagerHTML(c);
+  }
+  if(c.kpis)loadKpis(c,tok);
+}
+async function loadKpis(c,tok){
+  const defs=c.kpis;
+  const cols=[...new Set(defs.filter(d=>d.col).map(d=>d.col))];
+  const sums={};
+  cols.forEach(x=>{sums[x]=0});
+  if(cols.length){
+    try{
+      for(let from=0;;from+=1000){
+        let q=sb.from(c.ent.table).select(cols.join(','));
+        q=applyAll(q,c).order(c.ent.pk).range(from,from+999);
+        const {data,error}=await q;
+        if(error)throw error;
+        data.forEach(r=>cols.forEach(x=>{sums[x]+=num(r[x])}));
+        if(data.length<1000)break;
+        if(tok!==c.tok)return;
+      }
+    }catch(e){return}
+  }
+  if(tok!==c.tok)return;
+  const el=document.getElementById('kpi-'+c.key);
+  if(el)el.innerHTML=kpiHTML(defs,defs.map(d=>d.col?sums[d.col]:c.st.count));
+}
+
+function normV(t,v){
+  if(t==='check')return !!v;
+  if(v===undefined||v===null||v==='')return null;
+  switch(t){
+    case 'num':case 'money':case 'int':return Number(v);
+    case 'bool':return boolish(v);
+    case 'date':return String(v).slice(0,10);
+    case 'time':return String(v).slice(0,5);
+    case 'tags':return Array.isArray(v)&&v.length?JSON.stringify([...v].sort()):null;
+    default:return String(v);
+  }
+}
+const same=(t,a,b)=>normV(t,a)===normV(t,b);
+const isInput=f=>f.t!=='sec'&&f.t!=='ro'&&f.t!=='calc';
+function defaultsOf(ent){
+  const o={};
+  ent.fields.forEach(f=>{if(f.def!==undefined)o[f.k]=typeof f.def==='function'?f.def():f.def});
+  return o;
+}
+function roVal(f,v){
+  if(v==null||v==='')return '—';
+  if(f.f==='money')return fmtEur(v);
+  if(f.f==='pct')return fmtNum(v)+' %';
+  if(f.f==='date')return fmtDate(v);
+  return esc(v);
+}
+let dlSeq=0;
+function fieldHTML(f,vals,o){
+  if(f.t==='sec')return '<div class="f-sec">'+esc(f.l)+'</div>';
+  const v=vals[f.k];
+  const a='data-k="'+f.k+'"';
+  const lab='<label class="lbl">'+esc(f.l)+(f.req?' <b class="req">*</b>':'')+'</label>';
+  let inp='';
+  let full=f.t==='textarea'||f.t==='tags';
+  switch(f.t){
+    case 'text':case 'email':case 'tel':
+      inp='<input class="inp" type="'+f.t+'" '+a+' value="'+esc(v)+'">';break;
+    case 'num':case 'money':
+      inp='<input class="inp" type="number" step="any" '+a+' value="'+(v==null?'':esc(v))+'">';break;
+    case 'int':
+      inp='<input class="inp" type="number" step="1" '+a+' value="'+(v==null?'':esc(v))+'">';break;
+    case 'date':
+      inp='<input class="inp" type="date" '+a+' value="'+(v?esc(String(v).slice(0,10)):'')+'">';break;
+    case 'time':
+      inp='<input class="inp" type="time" '+a+' value="'+(v?esc(String(v).slice(0,5)):'')+'">';break;
+    case 'textarea':
+      inp='<textarea class="inp" rows="3" '+a+'>'+esc(v)+'</textarea>';break;
+    case 'select':{
+      const opts=(f.opts||[]).map(x=>Array.isArray(x)?x:[x,x]);
+      if(v!=null&&v!==''&&!opts.some(x=>String(x[0])===String(v)))opts.push([v,v]);
+      inp='<select class="inp" '+a+'>'+(f.req?'':'<option value=""></option>')+opts.map(x=>'<option value="'+esc(x[0])+'"'+(String(x[0])===String(v==null?'':v)?' selected':'')+'>'+esc(x[1])+'</option>').join('')+'</select>';
+      break;
+    }
+    case 'combo':{
+      const id='dl'+(++dlSeq);
+      const list=[...new Set([...(f.opts||[]),...((f.sg&&CACHE.sg[f.sg[0]+'.'+f.sg[1]])||[])])];
+      inp='<input class="inp" type="text" list="'+id+'" '+a+' value="'+esc(v)+'" autocomplete="off"><datalist id="'+id+'">'+list.map(x=>'<option value="'+esc(x)+'"></option>').join('')+'</datalist>';
+      break;
+    }
+    case 'bool':{
+      const b=boolish(v);
+      inp='<select class="inp" '+a+'><option value=""></option><option value="true"'+(b===true?' selected':'')+'>Sim</option><option value="false"'+(b===false?' selected':'')+'>Não</option></select>';
+      break;
+    }
+    case 'check':
+      return '<div class="fld"><label class="lbl">&nbsp;</label><label class="chk"><input type="checkbox" '+a+(v===undefined||v===null?(f.def?' checked':''):(v?' checked':''))+'> '+esc(f.l)+'</label></div>';
+    case 'tags':{
+      const cur=Array.isArray(v)?v:[];
+      inp='<div class="tags">'+(f.opts||[]).map(x=>'<label class="chk"><input type="checkbox" '+a+' value="'+esc(x[0])+'"'+(cur.includes(x[0])?' checked':'')+'> '+esc(x[1])+'</label>').join('')+'</div>';
+      break;
+    }
+    case 'parceiro':{
+      let sel=v!=null&&v!==''?String(v):'';
+      const parc=CACHE.parc||[];
+      if(!sel&&vals.parceiro_nome){
+        const m=parc.find(p=>String(p.nome_empresa).trim().toLowerCase()===String(vals.parceiro_nome).trim().toLowerCase());
+        if(m)sel=String(m.id);
+      }
+      const marca=o&&o.marca;
+      const list=parc.filter(p=>!marca||!p.marca||!p.marca.length||p.marca.includes(marca)||String(p.id)===sel);
+      inp='<select class="inp" '+a+'><option value="">—</option>'+list.map(p=>'<option value="'+esc(p.id)+'"'+(String(p.id)===sel?' selected':'')+'>'+esc(p.nome_empresa)+(p.cidades?' · '+esc(p.cidades):'')+(p.ativo===false?' (inativo)':'')+'</option>').join('')+'</select>';
+      break;
+    }
+    case 'ro':
+      inp='<div class="ro">'+roVal(f,v)+'</div>';break;
+    case 'calc':
+      inp='<div class="ro" data-calc="'+f.k+'">—</div>';break;
+  }
+  return '<div class="fld'+(full||f.full?' full':'')+'">'+lab+inp+'</div>';
+}
+function formHTML(ent,vals,o){
+  return ent.fields.map(f=>fieldHTML(f,vals,o)).join('');
+}
+function collect(form,fields){
+  const out={};
+  fields.filter(isInput).forEach(f=>{
+    if(f.t==='tags'){
+      out[f.k]=$$('[data-k="'+f.k+'"]:checked',form).map(x=>x.value);
+      return;
+    }
+    const el=$('[data-k="'+f.k+'"]',form);
+    if(!el)return;
+    if(f.t==='check'){out[f.k]=el.checked;return}
+    let v=el.value;
+    if(f.t==='bool'){out[f.k]=v===''?null:v==='true';return}
+    if(f.t==='num'||f.t==='money'){out[f.k]=v===''?null:Number(v);return}
+    if(f.t==='int'){out[f.k]=v===''?null:parseInt(v,10);return}
+    v=v.trim();
+    out[f.k]=v===''?null:v;
+  });
+  return out;
+}
+function calcValues(ent,form){
+  if(!ent.calc)return {};
+  const vals=collect(form,ent.fields);
+  const out={};
+  Object.keys(ent.calc).forEach(k=>{out[k]=ent.calc[k](Object.assign({},vals,out))});
+  return out;
+}
+function updateCalc(ent,form){
+  if(!ent.calc)return;
+  const out=calcValues(ent,form);
+  Object.keys(out).forEach(k=>{
+    const el=$('[data-calc="'+k+'"]',form);
+    if(el)el.textContent=fmtEur(out[k]);
+  });
+}
+function wireForm(ent,form,o){
+  form.addEventListener('input',()=>updateCalc(ent,form));
+  form.addEventListener('change',()=>updateCalc(ent,form));
+  updateCalc(ent,form);
+  const pick=$('[data-cat]',form);
+  if(pick&&ent.catalog){
+    pick.addEventListener('change',()=>{
+      const p=(CACHE.cat[ent.catalog.prod]||[]).find(x=>String(x[ENT[ent.catalog.prod].pk])===pick.value);
+      if(!p)return;
+      Object.keys(ent.catalog.map).forEach(fk=>{
+        const el=$('[data-k="'+fk+'"]',form);
+        const val=p[ent.catalog.map[fk]];
+        if(el&&val!=null)el.value=val;
+      });
+      updateCalc(ent,form);
+    });
+  }
+}
+function catalogHTML(ent){
+  if(!ent.catalog)return '';
+  const list=CACHE.cat[ent.catalog.prod]||[];
+  if(!list.length)return '';
+  const pe=ENT[ent.catalog.prod];
+  return '<div class="cat-pick"><label class="lbl">Preencher a partir do catálogo</label><select class="inp" data-cat><option value="">— Selecionar produto —</option>'+list.map(p=>'<option value="'+esc(p[pe.pk])+'">'+esc((p.sku||p.codigo||'')+(p.sku||p.codigo?' · ':'')+p.nome+(p.cidade?' ('+p.cidade+')':''))+'</option>').join('')+'</select></div>';
+}
+async function prepForm(ent){
+  const jobs=[];
+  ent.fields.forEach(f=>{if(f.sg)jobs.push(loadSg(f.sg[0],f.sg[1]))});
+  if(ent.fields.some(f=>f.t==='parceiro'))jobs.push(loadParc());
+  if(ent.catalog)jobs.push(loadCat(ent.catalog.prod));
+  await Promise.all(jobs);
+}
+async function persist(ent,row,form,fixed){
+  const data=collect(form,ent.fields);
+  const miss=ent.fields.filter(f=>f.req&&(data[f.k]==null||data[f.k]===''));
+  $$('.bad',form).forEach(x=>x.classList.remove('bad'));
+  if(miss.length){
+    miss.forEach(f=>{const el=$('[data-k="'+f.k+'"]',form);if(el)el.classList.add('bad')});
+    const e=new Error('Preencha os campos obrigatórios: '+miss.map(f=>f.l).join(', ')+'.');
+    e.user=true;
+    throw e;
+  }
+  const payload={};
+  if(row){
+    ent.fields.filter(isInput).forEach(f=>{if(!same(f.t,row[f.k],data[f.k]))payload[f.k]=data[f.k]});
+  }else{
+    ent.fields.filter(isInput).forEach(f=>{
+      const v=data[f.k];
+      if(v==null||v===''||(Array.isArray(v)&&!v.length))return;
+      payload[f.k]=v;
+    });
+    Object.assign(payload,fixed||{});
+  }
+  if('parceiro_id' in payload){
+    const p=(CACHE.parc||[]).find(x=>String(x.id)===String(payload.parceiro_id));
+    payload.parceiro_nome=p?p.nome_empresa:null;
+  }
+  if(ent.calc&&lsGet('ag_send_calc')==='1'){
+    const out=calcValues(ent,form);
+    Object.keys(out).forEach(k=>{if(isFinite(out[k])&&(!row||!same('money',row[k],out[k])))payload[k]=Math.round(out[k]*100)/100});
+  }
+  if(row&&!Object.keys(payload).length)return null;
+  return dbSave(ent,row,payload);
+}
+async function openForm(ent,row,o){
+  o=o||{};
+  await prepForm(ent);
+  const isNew=!row;
+  const vals=isNew?Object.assign(defaultsOf(ent),o.defaults||{}):Object.assign({},row);
+  const m=openModal(
+    '<div class="modal-h"><h3>'+esc((isNew?'Adicionar — ':'Editar — ')+ent.label)+'</h3><button class="ib" data-close>'+ico('x')+'</button></div>'+
+    '<div class="modal-b"><form class="fgrid" autocomplete="off">'+catalogHTML(ent)+formHTML(ent,vals,o)+'</form>'+(ent.calc?'<p class="hint">Os valores calculados são indicativos; a base de dados pode recalculá-los ao guardar.</p>':'')+'</div>'+
+    '<div class="modal-f">'+(!isNew&&o.canDelete!==false?'<button class="btn btn-d mr-auto" data-del>Eliminar</button>':'')+'<button class="btn btn-g" data-close>Cancelar</button><button class="btn btn-p" data-save>Guardar</button></div>',
+    {cls:ent.wide?'wide':'',sticky:true}
+  );
+  const form=$('form',m.box);
+  wireForm(ent,form,o);
+  form.addEventListener('submit',e=>e.preventDefault());
+  const first=$('input:not([type=checkbox]),select',form);
+  if(first&&isNew)first.focus();
+  const saveBtn=$('[data-save]',m.box);
+  saveBtn.addEventListener('click',async()=>{
+    setBusy(saveBtn,true);
+    try{
+      const saved=await persist(ent,isNew?null:row,form,o.fixed);
+      if(saved===null)toast('Sem alterações para guardar.','info');
+      else toast(isNew?'Registo criado com sucesso.':'Alterações guardadas.');
+      m.close();
+      if(o.onSaved)o.onSaved(saved);
+    }catch(e){
+      toast(errMsg(e),'error');
+      setBusy(saveBtn,false);
+    }
+  });
+  const delBtn=$('[data-del]',m.box);
+  if(delBtn)delBtn.addEventListener('click',async()=>{
+    if(!await confirmDlg({msg:'Tem a certeza de que pretende eliminar este registo? Esta ação não pode ser revertida.'}))return;
+    setBusy(delBtn,true);
+    try{
+      await dbDel(ent,row[ent.pk]);
+      toast('Registo eliminado.');
+      m.close();
+      if(o.onSaved)o.onSaved(null);
+    }catch(e){
+      toast(errMsg(e),'error');
+      setBusy(delBtn,false);
+    }
+  });
+}
+
+const GD={id:null,marca:'hsp',g:null,tab:'info',sub:{vendas:null,compras:null},rows:{}};
+let panelOpen=false;
+
+function showPanel(){
+  const r=$('#panel-root');
+  r.innerHTML='<div class="pn-root"><div class="pn-ov" data-act="panel-close"></div><aside class="pn" role="dialog" aria-modal="true"><div id="pn-head" class="pn-head"></div><div id="pn-tabs" class="pn-tabs"></div><div id="pn-body" class="pn-body">'+spinHTML()+'</div></aside></div>';
+  panelOpen=true;
+  syncLock();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{const p=$('.pn-root',r);if(p)p.classList.add('open')}));
+}
+function closePanel(instant){
+  const r=$('#panel-root');
+  if(!r||!r.children.length)return;
+  panelOpen=false;
+  const finish=()=>{if(!panelOpen){r.innerHTML='';syncLock()}};
+  if(instant){finish();return}
+  const p=$('.pn-root',r);
+  if(p)p.classList.remove('open');
+  setTimeout(finish,260);
+}
+function refreshList(){
+  const c=LISTS['g_hsp'];
+  const d=LISTS['g_odv'];
+  [c,d].forEach(x=>{if(x&&x.reload&&document.getElementById('tbl-'+x.key))x.reload()});
+}
+async function openGrupo(id,marca){
+  GD.id=id;GD.marca=marca;GD.g=null;GD.tab='info';GD.sub={vendas:null,compras:null};GD.rows={};
+  showPanel();
+  try{
+    await prepForm(ENT.grupos);
+    const {data,error}=await sb.from(ENT.grupos.table).select('*').eq('id',id).single();
+    if(error)throw error;
+    GD.g=data;
+    GD.marca=data.marca||marca;
+  }catch(e){
+    toast(errMsg(e),'error');
+    closePanel(true);
+    return;
+  }
+  renderPanel();
+}
+async function newGrupo(marca){
+  GD.id=null;GD.marca=marca;GD.g=Object.assign(defaultsOf(ENT.grupos),{marca});GD.tab='info';GD.sub={vendas:null,compras:null};GD.rows={};
+  showPanel();
+  await prepForm(ENT.grupos);
+  renderPanel();
+}
+function renderPanel(){
+  renderPanelHead();
+  renderPanelTabs();
+  renderPanelBody();
+}
+function renderPanelHead(){
+  const el=$('#pn-head');
+  if(!el)return;
+  const g=GD.g||{};
+  const isNew=!GD.id;
+  const kp=isNew?'':'<div class="pn-kpis"><div class="kpi"><div class="kpi-l">Total</div><div class="kpi-v">'+fmtEur(g.total)+'</div></div><div class="kpi ok"><div class="kpi-l">Pago</div><div class="kpi-v">'+fmtEur(g.pago)+'</div></div><div class="kpi err"><div class="kpi-l">Em falta</div><div class="kpi-v">'+fmtEur(g.em_falta)+'</div></div><div class="kpi ac"><div class="kpi-l">Lucro líquido</div><div class="kpi-v">'+fmtEur(g.lucro_liquido_total)+'</div></div></div>';
+  el.innerHTML=
+    '<div class="pn-top"><div><h2 class="pn-title">'+(isNew?'Novo grupo '+esc(String(GD.marca).toUpperCase()):esc(g.referencia||'Sem referência')+' · '+esc(g.nome_cliente||'Sem nome'))+'</h2>'+
+    (isNew?'':'<div class="pn-meta">'+badge(g.marca)+badge(g.estado_pagamento)+(g.cidade?'<span>'+esc(g.cidade)+'</span>':'')+'<span>'+esc(fmtDate(g.data_inicio))+' → '+esc(fmtDate(g.data_fim))+'</span>'+(g.nr_participantes?'<span>'+esc(g.nr_participantes)+' participantes</span>':'')+'</div>')+'</div>'+
+    '<div style="display:flex;gap:6px">'+(isNew?'':'<button class="ib danger" data-act="g-del" title="Eliminar grupo">'+ico('trash')+'</button>')+'<button class="ib" data-act="panel-close" title="Fechar">'+ico('x')+'</button></div></div>'+kp;
+}
+function renderPanelTabs(){
+  const el=$('#pn-tabs');
+  if(!el)return;
+  el.innerHTML=GRUPO_TABS.map(t=>'<button class="'+(GD.tab===t[0]?'on':'')+'" data-act="g-tab" data-tab="'+t[0]+'"'+(!GD.id&&t[0]!=='info'?' disabled':'')+'>'+t[1]+'</button>').join('');
+}
+function renderPanelBody(){
+  const body=$('#pn-body');
+  if(!body)return;
+  if(GD.tab==='info')renderInfo();
+  else if(GD.tab==='vendas'||GD.tab==='compras')renderLines(GD.tab);
+  else renderSingle(GD.tab);
+}
+function renderInfo(){
+  const body=$('#pn-body');
+  body.scrollTop=0;
+  body.innerHTML='<div class="pad"><form id="g-form" class="fgrid" autocomplete="off">'+formHTML(ENT.grupos,GD.g,{})+'</form></div><div class="pn-foot"><button class="btn btn-g" data-act="panel-close">Fechar</button><button class="btn btn-p" data-act="g-save">'+(GD.id?'Guardar alterações':'Criar grupo')+'</button></div>';
+  $('#g-form').addEventListener('submit',e=>e.preventDefault());
+}
+async function saveGrupo(btn){
+  setBusy(btn,true);
+  try{
+    const saved=await persist(ENT.grupos,GD.id?GD.g:null,$('#g-form'),{});
+    if(saved===null){toast('Sem alterações para guardar.','info')}
+    else{
+      GD.g=saved;
+      const wasNew=!GD.id;
+      GD.id=saved[ENT.grupos.pk];
+      if(saved.marca)GD.marca=saved.marca;
+      toast(wasNew?'Grupo criado com sucesso.':'Grupo guardado.');
+      if(wasNew){renderPanel()}else{renderPanelHead();renderInfo()}
+      refreshList();
+    }
+  }catch(e){toast(errMsg(e),'error')}
+  setBusy(btn,false);
+}
+async function deleteGrupo(){
+  if(!await confirmDlg({title:'Eliminar grupo',msg:'Eliminar este grupo e todos os registos associados? Esta ação não pode ser revertida.'}))return;
+  try{
+    await dbDel(ENT.grupos,GD.id);
+    toast('Grupo eliminado.');
+    closePanel();
+    refreshList();
+  }catch(e){toast(errMsg(e),'error')}
+}
+async function renderLines(kind){
+  const subs=SUBS[kind][GD.marca]||SUBS[kind].hsp;
+  if(!GD.sub[kind]||!subs.some(s=>s[0]===GD.sub[kind]))GD.sub[kind]=subs[0][0];
+  const cur=subs.find(s=>s[0]===GD.sub[kind]);
+  const body=$('#pn-body');
+  body.innerHTML='<div class="pad">'+(subs.length>1?'<div class="stabs">'+subs.map(s=>'<button class="stab'+(s[0]===cur[0]?' on':'')+'" data-act="g-sub" data-kind="'+kind+'" data-sub="'+s[0]+'">'+s[1]+'<i data-cnt="'+s[2]+'"></i></button>').join('')+'</div>':'')+'<div id="lines-host">'+spinHTML()+'</div></div>';
+  loadLines(cur[2]);
+  if(subs.length>1)loadCounts(subs);
+}
+function renderSingle(ek){
+  $('#pn-body').innerHTML='<div class="pad"><div id="lines-host">'+spinHTML()+'</div></div>';
+  loadLines(ek);
+}
+async function loadCounts(subs){
+  const res=await Promise.all(subs.map(s=>sb.from(ENT[s[2]].table).select('*',{count:'exact',head:true}).eq('grupo_id',GD.id).then(r=>r.count,()=>null)));
+  subs.forEach((s,i)=>{
+    const el=$('[data-cnt="'+s[2]+'"]');
+    if(el)el.textContent=res[i]?res[i]:'';
+  });
+}
+async function loadLines(ek){
+  const ent=ENT[ek];
+  const host=$('#lines-host');
+  if(!host)return;
+  const gid=GD.id;
+  const {data,error}=await sb.from(ent.table).select('*').eq('grupo_id',gid).order(ent.pk,{ascending:true});
+  const h=$('#lines-host');
+  if(!h||gid!==GD.id)return;
+  if(error){h.innerHTML=errBox(error);return}
+  GD.rows[ek]=data;
+  const sums=(ent.sum||[]).map(k=>{
+    const c=ent.cols.find(x=>x.k===k);
+    return '<span>'+esc(c?c.l:k)+'<b>'+fmtEur(data.reduce((a,r)=>a+num(r[k]),0))+'</b></span>';
+  }).join('');
+  h.innerHTML=
+    '<div class="ln-head"><span class="muted">'+data.length+' linha'+(data.length===1?'':'s')+'</span><button class="btn btn-p btn-sm" data-act="ln-new" data-ek="'+ek+'">'+ico('plus')+esc(ent.add)+'</button></div>'+
+    '<div class="card">'+(data.length?tableHTML(ent.cols,data,{ek,pk:ent.pk,rowAct:'ln-edit',actions:[['ln-edit','edit','Editar'],['ln-dup','copy','Duplicar'],['ln-del','trash','Eliminar','danger']]})+(sums?'<div class="sums">'+sums+'</div>':''):'<div class="empty">Ainda não existem registos. Utilize o botão "'+esc(ent.add)+'".</div>')+'</div>';
+}
+async function afterLine(ek){
+  loadLines(ek);
+  const kind=GD.tab;
+  if(kind==='vendas'||kind==='compras'){
+    const subs=SUBS[kind][GD.marca]||SUBS[kind].hsp;
+    if(subs.length>1)loadCounts(subs);
+  }
+  try{
+    const {data}=await sb.from(ENT.grupos.table).select('*').eq('id',GD.id).single();
+    if(data){GD.g=data;renderPanelHead()}
+  }catch(e){}
+  refreshList();
+}
+function lineDefaults(ent){
+  return ent.seed?ent.seed(GD.g||{}):{};
+}
+function openLine(ek,row,dup){
+  const ent=ENT[ek];
+  let defaults=lineDefaults(ent);
+  if(dup&&row){
+    const copy={};
+    ent.fields.filter(isInput).forEach(f=>{if(row[f.k]!=null)copy[f.k]=row[f.k]});
+    if(row.parceiro_id==null&&row.parceiro_nome)copy.parceiro_nome=row.parceiro_nome;
+    defaults=Object.assign(defaults,copy);
+  }
+  openForm(ent,dup?null:row,{defaults,fixed:{grupo_id:GD.id},marca:GD.marca,onSaved:()=>afterLine(ek)});
+}
+
+const ACT={
+  noop(){},
+  settings(){openSettings()},
+  logout(){logout()},
+  sort(el){
+    const c=LISTS[el.dataset.key];
+    if(!c)return;
+    const k=el.dataset.k;
+    const colDef=c.ent.cols.find(x=>x.k===k);
+    if(c.st.sortK===k)c.st.sortDir=c.st.sortDir==='asc'?'desc':'asc';
+    else{c.st.sortK=k;c.st.sortDir=colDef&&(colDef.f==='date'||colDef.f==='money')?'desc':'asc'}
+    c.st.page=1;
+    loadList(c);
+  },
+  page(el){
+    const c=LISTS[el.dataset.key];
+    if(!c)return;
+    c.st.page=Number(el.dataset.p);
+    loadList(c);
+  },
+  'list-new'(el){
+    const c=LISTS[el.dataset.key];
+    if(c.onNew)return c.onNew();
+    openForm(c.ent,null,{defaults:c.defaults,onSaved:()=>c.reload()});
+  },
+  'list-open'(el){
+    const c=LISTS[el.dataset.key];
+    const row=c.st.rows.find(r=>String(r[c.ent.pk])===el.dataset.id);
+    if(!row)return;
+    if(c.onOpen)return c.onOpen(row);
+    openForm(c.ent,row,{onSaved:()=>c.reload()});
+  },
+  'row-edit'(el){ACT['list-open'](el)},
+  async 'row-del'(el){
+    const c=LISTS[el.dataset.key];
+    if(!await confirmDlg({msg:'Eliminar este registo? Esta ação não pode ser revertida.'}))return;
+    try{
+      await dbDel(c.ent,el.dataset.id);
+      toast('Registo eliminado.');
+      c.reload();
+    }catch(e){toast(errMsg(e),'error')}
+  },
+  'panel-close'(){closePanel()},
+  'g-tab'(el){
+    GD.tab=el.dataset.tab;
+    renderPanelTabs();
+    renderPanelBody();
+  },
+  'g-sub'(el){
+    GD.sub[el.dataset.kind]=el.dataset.sub;
+    renderLines(el.dataset.kind);
+  },
+  'g-save'(el){saveGrupo(el)},
+  'g-del'(){deleteGrupo()},
+  'ln-new'(el){openLine(el.dataset.ek,null,false)},
+  'ln-edit'(el){
+    const row=(GD.rows[el.dataset.ek]||[]).find(r=>String(r[ENT[el.dataset.ek].pk])===el.dataset.id);
+    if(row)openLine(el.dataset.ek,row,false);
+  },
+  'ln-dup'(el){
+    const row=(GD.rows[el.dataset.ek]||[]).find(r=>String(r[ENT[el.dataset.ek].pk])===el.dataset.id);
+    if(row)openLine(el.dataset.ek,row,true);
+  },
+  async 'ln-del'(el){
+    const ek=el.dataset.ek;
+    if(!await confirmDlg({msg:'Eliminar esta linha? Esta ação não pode ser revertida.'}))return;
+    try{
+      await dbDel(ENT[ek],el.dataset.id);
+      toast('Linha eliminada.');
+      afterLine(ek);
+    }catch(e){toast(errMsg(e),'error')}
+  }
+};
+
+async function onToggle(el){
+  const c=LISTS[el.dataset.key];
+  if(!c)return;
+  const row=c.st.rows.find(r=>String(r[c.ent.pk])===el.dataset.id);
+  const val=el.checked;
+  const k=el.dataset.k;
+  el.disabled=true;
+  try{
+    const r=await sb.from(c.ent.table).update({[k]:val}).eq(c.ent.pk,el.dataset.id).select();
+    if(r.error)throw r.error;
+    if(!r.data||!r.data.length)throw new Error('A operação não teve efeito. Verifique as permissões (RLS) da tabela.');
+    if(row)row[k]=val;
+    afterWrite(c.ent);
+    toast(val?'Ativado.':'Desativado.');
+  }catch(e){
+    el.checked=!val;
+    toast(errMsg(e),'error');
+  }
+  el.disabled=false;
+}
+
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-act]');
+  if(!el)return;
+  if(el.dataset.act==='toggle')return;
+  const fn=ACT[el.dataset.act];
+  if(fn)fn(el,e);
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset&&t.dataset.act==='toggle'){onToggle(t);return}
+  if(t.dataset&&t.dataset.lf){
+    const c=LISTS[t.dataset.lf];
+    if(!c)return;
+    c.st.f[t.dataset.fk]=t.value;
+    c.st.page=1;
+    loadList(c);
+  }
+});
+let searchTimer=null;
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(!t.dataset||!t.dataset.lq)return;
+  const c=LISTS[t.dataset.lq];
+  if(!c)return;
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(()=>{
+    c.st.q=t.value;
+    c.st.page=1;
+    loadList(c);
+  },300);
+});
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  const m=$('#modals');
+  if(m.lastElementChild){
+    const ov=m.lastElementChild;
+    const x=$('[data-close],[data-no]',ov);
+    if(x)x.click();
+    else ov.remove();
+    syncLock();
+    return;
+  }
+  if(panelOpen)closePanel();
+});
+window.addEventListener('hashchange',()=>{if(!$('#app').classList.contains('hide'))route()});
+
+function pageGrupos(marca){
+  const key='g_'+marca;
+  const st=ST[key]||(ST[key]=newState(ENT.grupos));
+  mountList($('#view'),{
+    key,ent:ENT.grupos,st,
+    title:marca==='hsp'?'Grupos HenStag Portugal':'Grupos Outlet das Viagens',
+    sub:marca==='hsp'?'Despedidas de solteiro/a e eventos de grupo':'Viagens e serviços gerais',
+    ph:'Pesquisar por cliente, referência ou cidade…',
+    extra:q=>q.eq('marca',marca),
+    createLabel:'Novo Grupo',
+    onNew:()=>newGrupo(marca),
+    onOpen:r=>openGrupo(r[ENT.grupos.pk],marca),
+    actions:[['list-open','chev','Abrir']],
+    kpis:[{l:'Total de grupos',f:'int'},{l:'Total faturado',col:'total',f:'money'},{l:'Total pago',col:'pago',f:'money',cls:'ok'},{l:'Total em falta',col:'em_falta',f:'money',cls:'err'}]
+  });
+}
+function pageParceiros(){
+  const st=ST.parceiros||(ST.parceiros=newState(ENT.parceiros));
+  mountList($('#view'),{
+    key:'parceiros',ent:ENT.parceiros,st,
+    title:'Parceiros',sub:'Fornecedores de atividades, alojamento, transfers e outros serviços',
+    ph:'Pesquisar por empresa, cidade, responsável, email…',
+    createLabel:'Novo Parceiro',
+    defaults:{ativo:true,marca:[]}
+  });
+}
+function pageProdutos(){
+  const s=SUBTABS.produtos.find(x=>x[0]===APP.sub)||SUBTABS.produtos[0];
+  const ent=ENT[s[2]];
+  const st=ST[s[2]]||(ST[s[2]]=newState(ent));
+  mountList($('#view'),{
+    key:s[2],ent,st,
+    title:'Produtos — '+s[1],sub:'Catálogo de produtos e preços',
+    ph:'Pesquisar por SKU, código ou nome…',
+    createLabel:'Novo Produto'
+  });
+}
+function pageDespesas(){
+  const s=SUBTABS.despesas.find(x=>x[0]===APP.sub)||SUBTABS.despesas[0];
+  const ent=ENT[s[2]];
+  const st=ST[s[2]]||(ST[s[2]]=newState(ent));
+  const fixas=s[2]==='despesas_fixas';
+  mountList($('#view'),{
+    key:s[2],ent,st,
+    title:fixas?'Despesas Fixas':'Despesas — Pagamentos',
+    sub:fixas?'Custos recorrentes da empresa':'Registo de pagamentos e despesas',
+    ph:'Pesquisar por empresa, tipo, notas…',
+    createLabel:fixas?'Nova Despesa Fixa':'Nova Despesa',
+    kpis:fixas
+      ?[{l:'Registos',f:'int'},{l:'Custo mensal',col:'custo_mensal',f:'money'},{l:'Custo mensal c/ IVA',col:'custo_mensal_c_iva',f:'money'},{l:'IVA retido mensal',col:'iva_retido_mensal',f:'money'}]
+      :[{l:'Registos',f:'int'},{l:'Total de despesas',col:'valor',f:'money',cls:'err'},{l:'Montante líquido',col:'montante_liquido',f:'money'},{l:'IVA dedutível',col:'iva_dedutivel',f:'money'}]
+  });
+}
+
+function openSettings(first){
+  const c=cfg();
+  const m=openModal(
+    '<div class="modal-h"><h3>Definições de ligação</h3>'+(first&&!c.url?'':'<button class="ib" data-close>'+ico('x')+'</button>')+'</div>'+
+    '<div class="modal-b"><div class="setg">'+
+    '<div class="fld"><label class="lbl">URL do Supabase</label><input class="inp" id="s-url" type="url" placeholder="https://xxxx.supabase.co" value="'+esc(c.url)+'" autocomplete="off"></div>'+
+    '<div class="fld"><label class="lbl">Chave anónima (anon key)</label><input class="inp" id="s-key" type="password" placeholder="eyJ…" value="'+esc(c.key)+'" autocomplete="off"></div>'+
+    '<label class="chk"><input type="checkbox" id="s-calc"'+(lsGet('ag_send_calc')==='1'?' checked':'')+'> Enviar totais calculados ao guardar (desativar se forem colunas geradas na base de dados)</label>'+
+    '<details class="adv"><summary>Avançado: nomes de tabelas alternativos</summary><div class="fld"><textarea class="inp" id="s-tables" rows="4" placeholder=\'{"produtos_atividades":"atividades"}\'>'+esc(Object.keys(TB_OVERRIDE).length?JSON.stringify(TB_OVERRIDE,null,2):'')+'</textarea><span class="hint" style="margin-top:4px">Objeto JSON com o nome predefinido da tabela como chave e o nome real como valor.</span></div></details>'+
+    '<p class="hint" style="margin:0">Os dados ficam guardados apenas neste navegador (localStorage).</p>'+
+    '</div></div>'+
+    '<div class="modal-f">'+(c.url?'<button class="btn btn-d mr-auto" data-clear>Limpar</button>':'')+(first&&!c.url?'':'<button class="btn btn-g" data-close>Cancelar</button>')+'<button class="btn btn-p" data-ok>Guardar e testar</button></div>',
+    {cls:'sm',sticky:true}
+  );
+  m.box.style.marginTop='8vh';
+  m.box.style.maxWidth='520px';
+  const ok=$('[data-ok]',m.box);
+  ok.addEventListener('click',async()=>{
+    const url=$('#s-url').value.trim().replace(/\/+$/,'');
+    const key=$('#s-key').value.trim();
+    if(!/^https?:\/\/.+\..+/i.test(url)||!key){toast('Indique um URL válido e a chave anónima.','error');return}
+    const tablesRaw=$('#s-tables').value.trim();
+    let tablesStr='';
+    if(tablesRaw){
+      try{
+        const o=JSON.parse(tablesRaw);
+        if(!o||typeof o!=='object'||Array.isArray(o))throw new Error('x');
+        tablesStr=JSON.stringify(o);
+      }catch(e){toast('O JSON dos nomes de tabelas é inválido.','error');return}
+    }
+    setBusy(ok,true);
+    lsSet('ag_sb_url',url);
+    lsSet('ag_sb_key',key);
+    lsSet('ag_send_calc',$('#s-calc').checked?'1':'0');
+    const prevTables=lsGet('ag_tables')||'';
+    if(tablesStr!==prevTables){
+      if(tablesStr)lsSet('ag_tables',tablesStr);else lsDel('ag_tables');
+      location.reload();
+      return;
+    }
+    initClient();
+    const good=await checkConn();
+    setBusy(ok,false);
+    if(good){toast('Ligação estabelecida com sucesso.');m.close();CACHE.sg={};CACHE.parc=null;CACHE.cat={};route()}
+    else toast('Não foi possível ligar. Verifique o URL, a chave e as permissões.','error');
+  });
+  const clr=$('[data-clear]',m.box);
+  if(clr)clr.addEventListener('click',async()=>{
+    if(!await confirmDlg({title:'Limpar ligação',msg:'Remover o URL e a chave guardados neste navegador?',ok:'Limpar'}))return;
+    lsDel('ag_sb_url');lsDel('ag_sb_key');
+    sb=null;
+    m.close();
+    setConn('off');
+    route();
+  });
+}
+
+async function startApp(){
+  $('#gate').classList.add('hide');
+  $('#app').classList.remove('hide');
+  $$('[data-ic]').forEach(e=>{e.innerHTML=ico(e.dataset.ic)});
+  initClient();
+  route();
+  if(!sb){setConn('off');openSettings(true);return}
+  await checkConn();
+}
+
+gateInit();
+if(ssGet('ag_auth_ok')==='1')startApp();
+</script>
+</body>
+</html>
