@@ -642,4 +642,4 @@ INSERT INTO reembolsos (grupo_id, valor, forma_reembolso, codigo_reembolso_site,
 -- ========== REEMBOLSOS (ODV) ==========
 INSERT INTO reembolsos (grupo_id, valor, forma_reembolso, data_reembolso, fatura_nr) VALUES (49, 116.0, 'Transferencia Millenium', '2026-04-25', 'FT 2026/22');
 INSERT INTO reembolsos (grupo_id, valor, forma_reembolso, data_reembolso, fatura_nr) VALUES (73, 62.0, 'Transferencia Millenium', '2026-07-14', 'FT 2026/75');
-INSERT INTO reembolsos (grupo_id, valor, forma_reembolso, data_reembolso, fatura_nr) VALUES (78, NULL, NULL, NULL, NULL);
+-- removed: empty reembolso row (valor NULL)
