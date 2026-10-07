@@ -365,16 +365,17 @@ function setConn(state,msg){
   el.title=msg||CONN_TXT[state];
 }
 async function checkConn(){
-  if(!sb){setConn('off');return false}
+  if(!sb){setConn('off');return {ok:false,msg:'Não configurado'}}
   setConn('chk');
   try{
     const {error}=await sb.from(tb('grupos')).select('id',{count:'exact',head:true});
     if(error)throw error;
     setConn('ok');
-    return true;
+    return {ok:true};
   }catch(e){
-    setConn('err',errMsg(e));
-    return false;
+    const msg=errMsg(e);
+    setConn('err',msg);
+    return {ok:false,msg};
   }
 }
 function errMsg(e){
@@ -1685,10 +1686,10 @@ function openSettings(first){
       return;
     }
     initClient();
-    const good=await checkConn();
+    const res=await checkConn();
     setBusy(ok,false);
-    if(good){toast('Ligação estabelecida com sucesso.');m.close();CACHE.sg={};CACHE.parc=null;CACHE.cat={};route()}
-    else toast('Não foi possível ligar. Verifique o URL, a chave e as permissões.','error');
+    if(res.ok){toast('Ligação estabelecida com sucesso.');m.close();CACHE.sg={};CACHE.parc=null;CACHE.cat={};route()}
+    else toast(res.msg||'Não foi possível ligar. Verifique o URL, a chave e as permissões.','error');
   });
   const clr=$('[data-clear]',m.box);
   if(clr)clr.addEventListener('click',async()=>{
