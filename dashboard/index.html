@@ -419,7 +419,7 @@ function logout(){
   location.reload();
 }
 
-const TABS=[['hsp','HSP'],['odv','ODV'],['parceiros','Parceiros'],['produtos','Produtos'],['despesas','Despesas']];
+const TABS=[['hsp','HSP'],['odv','ODV'],['despesas','Despesas']];
 const APP={tab:'hsp',sub:null,subs:{}};
 
 function route(){
@@ -444,8 +444,9 @@ function render(){
     sn.innerHTML='<div class="subnav-in">'+subs.map(s=>'<a href="#'+APP.tab+'/'+s[0]+'" class="'+(APP.sub===s[0]?'on':'')+'">'+s[1]+'</a>').join('')+'</div>';
   }else sn.classList.add('hide');
   if(!sb){$('#view').innerHTML=noConnHTML();return}
-  const pages={hsp:()=>pageGrupos('hsp'),odv:()=>pageGrupos('odv'),parceiros:pageParceiros,produtos:pageProdutos,despesas:pageDespesas};
-  pages[APP.tab]();
+  if(APP.tab==='hsp')pageHSP();
+  else if(APP.tab==='odv')pageODV();
+  else if(APP.tab==='despesas')pageDespesas();
 }
 function noConnHTML(){
   return '<div class="card empty"><p style="font-size:16px;font-weight:600;color:var(--tx);margin-bottom:6px">Ligação à base de dados não configurada</p><p style="margin-bottom:16px">Indique o URL e a chave anónima do seu projeto Supabase para começar.</p><button class="btn btn-p" data-act="settings">Configurar ligação</button></div>';
@@ -530,63 +531,105 @@ const calcC={total:v=>num(v.preco_compra)*num(v.quantidade),em_falta:v=>num(v.to
 const compraTail=t=>[mo('pago','Pago'),cl('em_falta','Em falta'),dt('pagar_ate','Pagar até'),dt('data_pagamento','Data de pagamento'),bl('tem_fatura','Tem fatura'),cb('metodo_pagamento','Método de pagamento',{opts:METODOS,sg:[tb(t),'metodo_pagamento']}),respF(t)];
 const compraCols=extra=>[...extra,col('total','Total','money'),col('pago','Pago','money'),col('em_falta','Em falta','money',{neg:1}),col('pagar_ate','Pagar até','date'),col('tem_fatura','Fatura','bool')];
 
+const ORIGEM_MAP={'W':'Site','C':'Lead','O':'Marketplace','R':'Direto','OT':'Outlet','P':'Parceiro'};
+function origemFromRef(ref){
+  if(!ref)return '';
+  const m=ref.match(/^#([A-Z]{1,2})/);
+  if(!m)return 'Site';
+  return ORIGEM_MAP[m[1]]||m[1];
+}
+const GRUPO_FIELDS_HSP=[
+  sec('Identificação'),
+  tx('referencia','Referência',{req:1}),
+  ro('origem_venda','Origem da venda'),
+  ro('estado_pagamento','Estado de pagamento'),
+  cb('tipo_grupo','Tipo de grupo',{sg:['grupos','tipo_grupo']}),
+  cb('fonte_lead','Fonte do lead',{sg:['grupos','fonte_lead']}),
+  sec('Cliente'),
+  tx('nome_cliente','Nome do cliente',{req:1}),
+  tl('telemovel','Telemóvel'),
+  em('email','Email'),
+  cb('pais_origem','País de origem',{sg:['grupos','pais_origem']}),
+  cb('cidade','Cidade',CID),
+  it('nr_participantes','Nº de participantes'),
+  sec('Datas'),
+  dt('data_reserva','Data da reserva',{def:()=>today()}),
+  dt('data_inicio','Data de início'),
+  dt('data_fim','Data de fim'),
+  dt('proximo_pagamento','Próximo pagamento'),
+  sec('Faturação e condições'),
+  cb('regime_venda','Regime de venda',{opts:REGIMES,sg:['grupos','regime_venda']}),
+  mo('desconto','Desconto'),
+  bl('fatura','Fatura emitida'),
+  tx('fatura_nr','Fatura n.º'),
+  ro('confirmacao_parceiros','Parceiros confirmados'),
+  ta('incluido','Incluído'),
+  sl('info','Info / Voucher',{opts:['','Enviado','Aguarda Pagamento','Aguarda Documentos','Pendente']}),
+  ta('notas','Notas'),
+  sec('Financeiro (calculado)'),
+  ro('total','Total',{f:'money'}),
+  ro('pago','Pago',{f:'money'}),
+  ro('pago_pct','% pago',{f:'pct'}),
+  ro('em_falta','Em falta',{f:'money'}),
+  ro('total_sem_merch','Total sem merch',{f:'money'}),
+  ro('custo_sem_merch','Custo sem merch',{f:'money'}),
+  ro('lucro_bruto_re','Lucro bruto RE',{f:'money'}),
+  ro('lucro_bruto_re_pct','Lucro bruto RE %',{f:'pct'}),
+  ro('iva_sobre_lucro_re','IVA sobre lucro RE',{f:'money'}),
+  ro('lucro_liquido_re','Lucro líquido RE',{f:'money'}),
+  ro('merch_venda','Merch (venda)',{f:'money'}),
+  ro('custo_merch_c_iva','Custo merch c/ IVA',{f:'money'}),
+  ro('lucro_liquido_total','Lucro líquido total',{f:'money'}),
+  ro('trimestre','Trimestre'),
+  ro('mes_reserva','Mês da reserva')
+];
+const GRUPO_FIELDS_ODV=[
+  sec('Identificação'),
+  tx('referencia','Referência',{req:1}),
+  ro('origem_venda','Origem da venda'),
+  ro('estado_pagamento','Estado de pagamento'),
+  cb('fonte_lead','Fonte do lead',{sg:['grupos','fonte_lead']}),
+  cb('outlet_revendedor','Outlet / Revendedor',{sg:['grupos','outlet_revendedor']}),
+  sec('Cliente'),
+  tx('nome_cliente','Nome do cliente',{req:1}),
+  tl('telemovel','Telemóvel'),
+  em('email','Email'),
+  it('nr_participantes','Nº de participantes'),
+  sec('Datas'),
+  dt('data_reserva','Data da reserva',{def:()=>today()}),
+  dt('data_inicio','Data de partida'),
+  dt('data_fim','Data de regresso'),
+  cb('cidade','Destino',CID),
+  dt('proximo_pagamento','Próximo pagamento'),
+  sec('Condições'),
+  cb('regime_venda','Regime',{opts:['PA','TI','MP','SA','NA'],sg:['grupos','regime_venda']}),
+  mo('desconto','Desconto'),
+  bl('fatura','Fatura emitida'),
+  tx('fatura_nr','Fatura n.º'),
+  ro('confirmacao_parceiros','Parceiros confirmados'),
+  ta('incluido','Incluído'),
+  sl('info','Info / Voucher',{opts:['','Enviado','Aguarda Pagamento','Aguarda Documentos','Pendente']}),
+  ta('notas','Notas'),
+  sec('Financeiro (calculado)'),
+  ro('total','Total',{f:'money'}),
+  ro('pago','Pago',{f:'money'}),
+  ro('pago_pct','% pago',{f:'pct'}),
+  ro('em_falta','Em falta',{f:'money'}),
+  ro('lucro_bruto_re','Lucro bruto RE',{f:'money'}),
+  ro('lucro_liquido_re','Lucro líquido RE',{f:'money'}),
+  ro('lucro_liquido_total','Lucro líquido total',{f:'money'}),
+  ro('trimestre','Trimestre'),
+  ro('mes_reserva','Mês da reserva')
+];
 const ENT={
-  grupos:{
-    table:tb('grupos'),pk:'id',label:'Grupo',sort:['data_inicio','desc'],
+  grupos_hsp:{
+    table:tb('grupos'),pk:'id',label:'Grupo HSP',sort:['data_inicio','desc'],
     search:['nome_cliente','referencia','cidade'],
     filters:[
       {k:'estado',opts:[['','Todos os estados'],...ESTADO_PAG.map(x=>[x,x])],apply:(q,v)=>q.eq('estado_pagamento',v)},
       {k:'periodo',opts:[['','Todas as datas'],['futuros','Início futuro'],['passados','Início passado']],apply:(q,v)=>v==='futuros'?q.gte('data_inicio',today()):q.lt('data_inicio',today())}
     ],
-    fields:[
-      sec('Identificação'),
-      sl('marca','Marca',{opts:[['hsp','HenStag Portugal (HSP)'],['odv','Outlet das Viagens (ODV)']],req:1}),
-      tx('referencia','Referência',{req:1}),
-      sl('estado_pagamento','Estado de pagamento',{opts:ESTADO_PAG,def:'Pendente'}),
-      cb('tipo_grupo','Tipo de grupo',{sg:['grupos','tipo_grupo']}),
-      cb('origem_venda','Origem da venda',{sg:['grupos','origem_venda']}),
-      cb('fonte_lead','Fonte do lead',{sg:['grupos','fonte_lead']}),
-      cb('outlet_revendedor','Outlet / Revendedor',{sg:['grupos','outlet_revendedor']}),
-      sec('Cliente'),
-      tx('nome_cliente','Nome do cliente',{req:1}),
-      tl('telemovel','Telemóvel'),
-      em('email','Email'),
-      cb('pais_origem','País de origem',{sg:['grupos','pais_origem']}),
-      cb('cidade','Cidade',CID),
-      it('nr_participantes','Nº de participantes'),
-      sec('Datas e voos'),
-      dt('data_reserva','Data da reserva',{def:()=>today()}),
-      dt('data_inicio','Data de início'),
-      dt('data_fim','Data de fim'),
-      dt('proximo_pagamento','Próximo pagamento'),
-      tx('aeroporto_saida','Aeroporto de saída'),
-      tx('check_in_voo','Check-in do voo'),
-      sec('Faturação e condições'),
-      cb('regime_venda','Regime de venda',{opts:REGIMES,sg:['grupos','regime_venda']}),
-      mo('desconto','Desconto'),
-      bl('fatura','Fatura emitida'),
-      tx('fatura_nr','Fatura n.º'),
-      bl('confirmacao_parceiros','Parceiros confirmados'),
-      ta('incluido','Incluído'),
-      ta('info','Informações'),
-      ta('notas','Notas'),
-      sec('Financeiro (calculado)'),
-      ro('total','Total',{f:'money'}),
-      ro('pago','Pago',{f:'money'}),
-      ro('pago_pct','% pago',{f:'pct'}),
-      ro('em_falta','Em falta',{f:'money'}),
-      ro('total_sem_merch','Total sem merch',{f:'money'}),
-      ro('custo_sem_merch','Custo sem merch',{f:'money'}),
-      ro('lucro_bruto_re','Lucro bruto RE',{f:'money'}),
-      ro('lucro_bruto_re_pct','Lucro bruto RE %',{f:'pct'}),
-      ro('iva_sobre_lucro_re','IVA sobre lucro RE',{f:'money'}),
-      ro('lucro_liquido_re','Lucro líquido RE',{f:'money'}),
-      ro('merch_venda','Merch (venda)',{f:'money'}),
-      ro('custo_merch_c_iva','Custo merch c/ IVA',{f:'money'}),
-      ro('lucro_liquido_total','Lucro líquido total',{f:'money'}),
-      ro('trimestre','Trimestre'),
-      ro('mes_reserva','Mês da reserva')
-    ],
+    fields:GRUPO_FIELDS_HSP,
     cols:[
       col('referencia','Referência','text',{cls:'b'}),
       col('nome_cliente','Cliente'),
@@ -594,10 +637,35 @@ const ENT={
       col('data_inicio','Início','date'),
       col('data_fim','Fim','date'),
       col('nr_participantes','Pax','int'),
+      col('confirmacao_parceiros','Confirmados'),
       col('total','Total','money'),
       col('pago','Pago','money'),
       col('em_falta','Em falta','money',{neg:1}),
-      col('estado_pagamento','Estado','badge')
+      col('estado_pagamento','Estado','badge'),
+      col('info','Info','badge')
+    ]
+  },
+  grupos_odv:{
+    table:tb('grupos'),pk:'id',label:'Grupo ODV',sort:['data_inicio','desc'],
+    search:['nome_cliente','referencia','cidade'],
+    filters:[
+      {k:'estado',opts:[['','Todos os estados'],...ESTADO_PAG.map(x=>[x,x])],apply:(q,v)=>q.eq('estado_pagamento',v)},
+      {k:'periodo',opts:[['','Todas as datas'],['futuros','Partida futura'],['passados','Partida passada']],apply:(q,v)=>v==='futuros'?q.gte('data_inicio',today()):q.lt('data_inicio',today())}
+    ],
+    fields:GRUPO_FIELDS_ODV,
+    cols:[
+      col('referencia','Referência','text',{cls:'b'}),
+      col('nome_cliente','Cliente'),
+      col('cidade','Destino'),
+      col('data_inicio','Partida','date'),
+      col('data_fim','Regresso','date'),
+      col('nr_participantes','Pax','int'),
+      col('confirmacao_parceiros','Confirmados'),
+      col('total','Total','money'),
+      col('pago','Pago','money'),
+      col('em_falta','Em falta','money',{neg:1}),
+      col('estado_pagamento','Estado','badge'),
+      col('info','Info','badge')
     ]
   },
 
@@ -828,8 +896,10 @@ const SUBS={
     odv:[['odv','Compras ODV','c_odv']]
   }
 };
+function grupoENT(marca){return marca==='odv'?ENT.grupos_odv:ENT.grupos_hsp}
 const SUBTABS={
-  produtos:[['atividades','Atividades','p_atividades'],['packs','Packs','p_packs'],['alojamento','Alojamento','p_alojamento'],['transfers','Transfers','p_transfers'],['merch','Merch','p_merch'],['odv','ODV','p_odv']],
+  hsp:[['grupos','Grupos'],['parceiros','Parceiros'],['atividades','Atividades','p_atividades'],['packs','Packs','p_packs'],['alojamento','Alojamento','p_alojamento'],['transfers','Transfers','p_transfers'],['merch','Merch','p_merch']],
+  odv:[['grupos','Grupos'],['parceiros','Parceiros'],['produtos','Produtos','p_odv']],
   despesas:[['pagamentos','Pagamentos','despesas'],['fixas','Fixas','despesas_fixas']]
 };
 const GRUPO_TABS=[['info','Info'],['vendas','Vendas'],['compras','Compras'],['pagamentos','Pagamentos'],['reembolsos','Reembolsos']];
@@ -1222,6 +1292,7 @@ async function persist(ent,row,form,fixed){
   const payload={};
   if(row){
     ent.fields.filter(isInput).forEach(f=>{if(!same(f.t,row[f.k],data[f.k]))payload[f.k]=data[f.k]});
+    if(fixed){Object.keys(fixed).forEach(k=>{if(fixed[k]!=null&&!same('text',row[k],fixed[k]))payload[k]=fixed[k]})}
   }else{
     ent.fields.filter(isInput).forEach(f=>{
       const v=data[f.k];
@@ -1315,9 +1386,10 @@ function refreshList(){
 async function openGrupo(id,marca){
   GD.id=id;GD.marca=marca;GD.g=null;GD.tab='info';GD.sub={vendas:null,compras:null};GD.rows={};
   showPanel();
+  const ent=grupoENT(marca);
   try{
-    await prepForm(ENT.grupos);
-    const {data,error}=await sb.from(ENT.grupos.table).select('*').eq('id',id).single();
+    await prepForm(ent);
+    const {data,error}=await sb.from(ent.table).select('*').eq('id',id).single();
     if(error)throw error;
     GD.g=data;
     GD.marca=data.marca||marca;
@@ -1329,9 +1401,10 @@ async function openGrupo(id,marca){
   renderPanel();
 }
 async function newGrupo(marca){
-  GD.id=null;GD.marca=marca;GD.g=Object.assign(defaultsOf(ENT.grupos),{marca});GD.tab='info';GD.sub={vendas:null,compras:null};GD.rows={};
+  const ent=grupoENT(marca);
+  GD.id=null;GD.marca=marca;GD.g=Object.assign(defaultsOf(ent),{marca});GD.tab='info';GD.sub={vendas:null,compras:null};GD.rows={};
   showPanel();
-  await prepForm(ENT.grupos);
+  await prepForm(ent);
   renderPanel();
 }
 function renderPanel(){
@@ -1364,19 +1437,26 @@ function renderPanelBody(){
 }
 function renderInfo(){
   const body=$('#pn-body');
+  const ent=grupoENT(GD.marca);
   body.scrollTop=0;
-  body.innerHTML='<div class="pad"><form id="g-form" class="fgrid" autocomplete="off">'+formHTML(ENT.grupos,GD.g,{})+'</form></div><div class="pn-foot"><button class="btn btn-g" data-act="panel-close">Fechar</button><button class="btn btn-p" data-act="g-save">'+(GD.id?'Guardar alterações':'Criar grupo')+'</button></div>';
+  body.innerHTML='<div class="pad"><form id="g-form" class="fgrid" autocomplete="off">'+formHTML(ent,GD.g,{marca:GD.marca})+'</form></div><div class="pn-foot"><button class="btn btn-g" data-act="panel-close">Fechar</button><button class="btn btn-p" data-act="g-save">'+(GD.id?'Guardar alterações':'Criar grupo')+'</button></div>';
   $('#g-form').addEventListener('submit',e=>e.preventDefault());
 }
 async function saveGrupo(btn){
   setBusy(btn,true);
+  const ent=grupoENT(GD.marca);
   try{
-    const saved=await persist(ENT.grupos,GD.id?GD.g:null,$('#g-form'),{});
+    const vals=collect($('#g-form'),ent.fields);
+    const ref=vals.referencia||'';
+    const ov=origemFromRef(ref);
+    const fixed={marca:GD.marca};
+    if(ov)fixed.origem_venda=ov;
+    const saved=await persist(ent,GD.id?GD.g:null,$('#g-form'),fixed);
     if(saved===null){toast('Sem alterações para guardar.','info')}
     else{
       GD.g=saved;
       const wasNew=!GD.id;
-      GD.id=saved[ENT.grupos.pk];
+      GD.id=saved[ent.pk];
       if(saved.marca)GD.marca=saved.marca;
       toast(wasNew?'Grupo criado com sucesso.':'Grupo guardado.');
       if(wasNew){renderPanel()}else{renderPanelHead();renderInfo()}
@@ -1388,7 +1468,7 @@ async function saveGrupo(btn){
 async function deleteGrupo(){
   if(!await confirmDlg({title:'Eliminar grupo',msg:'Eliminar este grupo e todos os registos associados? Esta ação não pode ser revertida.'}))return;
   try{
-    await dbDel(ENT.grupos,GD.id);
+    await dbDel(grupoENT(GD.marca),GD.id);
     toast('Grupo eliminado.');
     closePanel();
     refreshList();
@@ -1440,7 +1520,7 @@ async function afterLine(ek){
     if(subs.length>1)loadCounts(subs);
   }
   try{
-    const {data}=await sb.from(ENT.grupos.table).select('*').eq('id',GD.id).single();
+    const {data}=await sb.from(grupoENT(GD.marca).table).select('*').eq('id',GD.id).single();
     if(data){GD.g=data;renderPanelHead()}
   }catch(e){}
   refreshList();
@@ -1602,41 +1682,59 @@ document.addEventListener('keydown',e=>{
 window.addEventListener('hashchange',()=>{if(!$('#app').classList.contains('hide'))route()});
 
 function pageGrupos(marca){
+  const ent=grupoENT(marca);
   const key='g_'+marca;
-  const st=ST[key]||(ST[key]=newState(ENT.grupos));
+  const st=ST[key]||(ST[key]=newState(ent));
   mountList($('#view'),{
-    key,ent:ENT.grupos,st,
+    key,ent,st,
     title:marca==='hsp'?'Grupos HenStag Portugal':'Grupos Outlet das Viagens',
     sub:marca==='hsp'?'Despedidas de solteiro/a e eventos de grupo':'Viagens e serviços gerais',
     ph:'Pesquisar por cliente, referência ou cidade…',
     extra:q=>q.eq('marca',marca),
     createLabel:'Novo Grupo',
     onNew:()=>newGrupo(marca),
-    onOpen:r=>openGrupo(r[ENT.grupos.pk],marca),
+    onOpen:r=>openGrupo(r[ent.pk],marca),
     actions:[['list-open','chev','Abrir']],
     kpis:[{l:'Total de grupos',f:'int'},{l:'Total faturado',col:'total',f:'money'},{l:'Total pago',col:'pago',f:'money',cls:'ok'},{l:'Total em falta',col:'em_falta',f:'money',cls:'err'}]
   });
 }
-function pageParceiros(){
-  const st=ST.parceiros||(ST.parceiros=newState(ENT.parceiros));
+function pageParceiros(marca){
+  const key='parc_'+marca;
+  const st=ST[key]||(ST[key]=newState(ENT.parceiros));
   mountList($('#view'),{
-    key:'parceiros',ent:ENT.parceiros,st,
-    title:'Parceiros',sub:'Fornecedores de atividades, alojamento, transfers e outros serviços',
+    key,ent:ENT.parceiros,st,
+    title:marca==='hsp'?'Parceiros HSP':'Parceiros ODV',
+    sub:'Fornecedores de atividades, alojamento, transfers e outros serviços',
     ph:'Pesquisar por empresa, cidade, responsável, email…',
+    extra:q=>q.contains('marca',[marca]),
     createLabel:'Novo Parceiro',
-    defaults:{ativo:true,marca:[]}
+    defaults:{ativo:true,marca:[marca]}
   });
 }
-function pageProdutos(){
-  const s=SUBTABS.produtos.find(x=>x[0]===APP.sub)||SUBTABS.produtos[0];
+function pageProdutos(marca,sub){
+  const subs=SUBTABS[marca].filter(s=>s[2]);
+  const s=subs.find(x=>x[0]===sub)||subs[0];
+  if(!s)return;
   const ent=ENT[s[2]];
   const st=ST[s[2]]||(ST[s[2]]=newState(ent));
   mountList($('#view'),{
     key:s[2],ent,st,
-    title:'Produtos — '+s[1],sub:'Catálogo de produtos e preços',
+    title:ent.label,sub:'Catálogo de produtos e preços',
     ph:'Pesquisar por SKU, código ou nome…',
     createLabel:'Novo Produto'
   });
+}
+function pageHSP(){
+  const sub=APP.sub||'grupos';
+  if(sub==='grupos')pageGrupos('hsp');
+  else if(sub==='parceiros')pageParceiros('hsp');
+  else pageProdutos('hsp',sub);
+}
+function pageODV(){
+  const sub=APP.sub||'grupos';
+  if(sub==='grupos')pageGrupos('odv');
+  else if(sub==='parceiros')pageParceiros('odv');
+  else pageProdutos('odv',sub);
 }
 function pageDespesas(){
   const s=SUBTABS.despesas.find(x=>x[0]===APP.sub)||SUBTABS.despesas[0];
