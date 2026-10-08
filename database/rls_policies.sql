@@ -1,9 +1,18 @@
 -- ============================================================
--- RLS POLICIES — Allow anon key full access to all tables
+-- RLS POLICIES + GRANTS — Allow anon key full access to all tables
 -- Run this in Supabase SQL Editor after creating the schema
 -- ============================================================
 
--- Disable RLS on all tables (simplest approach for private dashboard)
+-- Step 1: Grant table-level permissions to anon role
+GRANT USAGE ON SCHEMA public TO anon;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon;
+
+-- Also grant for future tables/sequences created in this schema
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO anon;
+
+-- Step 2: Enable RLS on all tables
 ALTER TABLE cidades ENABLE ROW LEVEL SECURITY;
 ALTER TABLE paises ENABLE ROW LEVEL SECURITY;
 ALTER TABLE parceiros ENABLE ROW LEVEL SECURITY;
