@@ -3100,7 +3100,7 @@
       return data || [];
     }
     function fmtVal(v) { return v != null ? String(v) : ''; }
-    function fmtNum(v) { return v != null ? String(v) : '0'; }
+    function fmtNum(v) { if (v == null) return '0'; return String(v).replace('.', ','); }
     function fmtDate(v) { if (!v) return ''; return v; }
 
     // ── ODV VENDAS ADAPTER → array-of-arrays matching original Sheet column layout ──
@@ -6772,7 +6772,7 @@
           row[2] = r.parceiro_nome || '';
           row[3] = r.tipo || '';
           row[4] = r.servico || '';
-          row[9] = r.total != null ? String(r.total) : '';
+          row[9] = r.total != null ? String(r.total).replace('.',',') : '';
           return row;
         });
         console.log('[compras] odvComprasRows:', _odvComprasRows.length);
