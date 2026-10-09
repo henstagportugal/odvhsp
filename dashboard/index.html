@@ -3177,18 +3177,67 @@
     async function getSheetNamesFrom() { return []; }
     async function getSheetNames() { return []; }
 
+    // HSP dívidas: query compras tables directly (avoids v_divida_parceiros_hsp
+    // view which requires parceiro_id JOIN and drops rows where parceiro_id is NULL)
+    async function _queryDividasHsp() {
+      const sel = 'parceiro_id, parceiro_nome, pago, em_falta, pagar_ate, grupo_id, grupos!inner(referencia, marca)';
+      const [a, b, c, d] = await Promise.all([
+        sbQuery('compras_atividades', { select: sel, neq: { em_falta: 0 } }),
+        sbQuery('compras_alojamento', { select: sel, neq: { em_falta: 0 } }),
+        sbQuery('compras_transfers',  { select: sel, neq: { em_falta: 0 } }),
+        sbQuery('compras_merch',      { select: sel, neq: { em_falta: 0 } }),
+      ]);
+      return [...a, ...b, ...c, ...d]
+        .filter(r => r.grupos?.marca === 'hsp')
+        .map(r => ({
+          parceiro_id: r.parceiro_id,
+          parceiro: r.parceiro_nome || '',
+          referencia: r.grupos?.referencia || '',
+          marca: 'hsp',
+          pago: r.pago,
+          em_falta: r.em_falta,
+          pagar_ate: r.pagar_ate,
+        }));
+    }
+
     // ── LOAD DATA ──
     async function loadData() {
       hide('nokey-msg'); hide('outlet-content'); hide('error-msg');
       show('loading-msg');
       try {
         // ── Fetch from Supabase ──
-        const [gruposRaw, dividasRaw, pagRaw, viagRaw] = await Promise.all([
+        const [gruposRaw, dividasRaw, pagRaw, viagRaw, comprasOdvRaw] = await Promise.all([
           sbQuery('grupos', { eq: { marca: 'odv' } }),
           sbQuery('v_divida_parceiros_odv'),
           sbQuery('v_proximos_pagamentos', { eq: { marca: 'odv' } }),
           sbQuery('grupos', { eq: { marca: 'odv' } }),
+          sbQuery('compras_odv', { select: 'grupo_id, total' }),
         ]);
+
+        // Compute custo per grupo from compras_odv (for lucro fallback)
+        const custoMap = {};
+        (comprasOdvRaw || []).forEach(c => {
+          if (!c.grupo_id) return;
+          custoMap[c.grupo_id] = (custoMap[c.grupo_id] || 0) + (Number(c.total) || 0);
+        });
+        gruposRaw.forEach(g => {
+          const tot = Number(g.total) || 0;
+          const storedLb = Number(g.lucro_bruto_re) || 0;
+          const storedCusto = Number(g.custo_sem_merch) || 0;
+          if (storedLb === 0 && tot > 0) {
+            const custo = custoMap[g.id] || storedCusto;
+            if (custo > 0 || storedCusto > 0) {
+              const c = custo || storedCusto;
+              g.custo_sem_merch = c;
+              g.lucro_bruto_re = tot - c;
+              g.lucro_bruto_re_pct = tot > 0 ? (tot - c) / tot : 0;
+              const iva = g.lucro_bruto_re > 0 ? Math.round(g.lucro_bruto_re * 0.23 * 100) / 100 : 0;
+              g.iva_sobre_lucro_re = iva;
+              g.lucro_liquido_re = g.lucro_bruto_re - iva;
+              g.lucro_liquido_re_pct = tot > 0 ? g.lucro_liquido_re / tot : 0;
+            }
+          }
+        });
 
         // ── Adapt to array-of-arrays ──
         const vendas = [ODV_VENDAS_HEADER, ...gruposRaw.map(odvGrupoToRow)];
@@ -4254,7 +4303,7 @@
           sbQuery('v_proximos_eventos', { eq: { marca: 'hsp' } }),
           sbQuery('vendas_merch', { select: '*, grupos!inner(referencia, nome_cliente, marca)' }),
           sbQuery('v_proximos_pagamentos', { eq: { marca: 'hsp' } }),
-          sbQuery('v_divida_parceiros_hsp'),
+          _queryDividasHsp(),
           sbQuery('v_faturas_em_falta', { eq: { marca: 'hsp' } }),
         ]);
 
