@@ -4775,7 +4775,7 @@
         });
         const tot = parseEuro(row[15]); // Total € col P (idx 15)
         const lb  = parseEuro(row[22]) + Math.max(0, parseEuro(row[27]) - parseEuro(row[28])); // LB serviços + LB merch
-        const iva = (parseEuro(row[22]) > 0 && rHasFV) ? parseEuro(row[24]) : 0;
+        const iva = parseEuro(row[22]) > 0 ? parseEuro(row[24]) : 0;
         const ll  = lb - iva;
         if (isThisYear(d)) {
           fatAno+=tot; lbAno+=lb; llAno+=ll;
@@ -4880,7 +4880,7 @@
           return (_isSite ? pvid===_key : pgid===_key) && (p[7]||'').toLowerCase().includes('especial') && (p[_fiHG]||'').trim();
         });
         const _lb  = parseEuro(r[22]) + Math.max(0, parseEuro(r[27]) - parseEuro(r[28]));
-        const _iva = (parseEuro(r[22]) > 0 && _hasFV) ? parseEuro(r[24]) : 0;
+        const _iva = parseEuro(r[22]) > 0 ? parseEuro(r[24]) : 0;
         const _llRow = _lb - _iva;
         const idCell   = grupoId
           ? `<span class="font-mono" style="color:#8b5cf6">${grupoId}</span>`
@@ -5085,7 +5085,7 @@
         });
         const fat = parseEuro(row[15]);
         const lb  = parseEuro(row[22]) + Math.max(0, parseEuro(row[27]) - parseEuro(row[28]));
-        const _iva = (parseEuro(row[22]) > 0 && _hasFV) ? parseEuro(row[24]) : 0;
+        const _iva = parseEuro(row[22]) > 0 ? parseEuro(row[24]) : 0;
         const ll  = lb - _iva;
 
         // Por mês de reserva
@@ -5690,7 +5690,7 @@
         });
         const fat = parseEuro(row[15]); // Total € col P (incl. merch)
         const lb  = parseEuro(row[22]) + Math.max(0, parseEuro(row[27]) - parseEuro(row[28])); // LB serviços + LB merch
-        const iva = (parseEuro(row[22]) > 0 && hasFatVenda) ? parseEuro(row[24]) : 0;
+        const iva = parseEuro(row[22]) > 0 ? parseEuro(row[24]) : 0;
         const ll  = lb - iva;
         quarters[q].fat+=fat; quarters[q].lb+=lb; quarters[q].iva+=iva; quarters[q].ll+=ll;
         const nome    = (row[7]||'').trim();
@@ -6062,7 +6062,7 @@
         });
         const fat = parseEuro(row[15]);
         const lb  = parseEuro(row[22]) + Math.max(0, parseEuro(row[27]) - parseEuro(row[28]));
-        const iva = (parseEuro(row[22]) > 0 && hasFVR) ? parseEuro(row[24]) : 0;
+        const iva = parseEuro(row[22]) > 0 ? parseEuro(row[24]) : 0;
         const ll  = lb - iva;
         if (isThisYear(d))  { hsFatAno+=fat; hsLbAno+=lb; hsLlAno+=ll; if (isThisMonth(d)) { hsFatMes+=fat; hsLbMes+=lb; hsLlMes+=ll; } }
         if (d.getFullYear()===prevMonthYear && d.getMonth()===prevMonth && d.getDate()<=now.getDate()) hsFatMesPassado+=fat;
@@ -6731,7 +6731,7 @@
         const hFat = parseEuro(row[15]);
         const hLb  = parseEuro(row[22]) + Math.max(0, parseEuro(row[27]) - parseEuro(row[28]));
         // IVA only for RE rows (LB serviços > 0) with sale invoice — matches RE report
-        const hIva = (parseEuro(row[22]) > 0 && hasFatVendaH) ? parseEuro(row[24]) : 0;
+        const hIva = parseEuro(row[22]) > 0 ? parseEuro(row[24]) : 0;
         const hLl  = hLb - hIva;
         hQuarters[q].fat += hFat;
         hQuarters[q].lb  += hLb;
@@ -7296,7 +7296,7 @@
         });
         const fat = parseEuro(row[15]);
         const lb  = parseEuro(row[22]) + Math.max(0, parseEuro(row[27]) - parseEuro(row[28]));
-        const _iva = (parseEuro(row[22]) > 0 && _hasFV) ? parseEuro(row[24]) : 0;
+        const _iva = parseEuro(row[22]) > 0 ? parseEuro(row[24]) : 0;
         const ll  = lb - _iva;
         const mk = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
         const m = ensureMonth(mk);
@@ -7403,7 +7403,7 @@
           return (_isSite ? pvid===_key : pgid===_key) && (p[7]||'').toLowerCase().includes('especial') && (p[_fiLD]||'').trim();
         });
         const _lb = parseEuro(row[22]) + Math.max(0, parseEuro(row[27]) - parseEuro(row[28]));
-        const _iva = (parseEuro(row[22]) > 0 && _hasFV) ? parseEuro(row[24]) : 0;
+        const _iva = parseEuro(row[22]) > 0 ? parseEuro(row[24]) : 0;
         addLead('🦌 ' + canal, parseEuro(row[15]), _lb, _lb - _iva);
         leads['🦌 ' + canal].hN = (leads['🦌 ' + canal].hN||0) + 1;
       });
