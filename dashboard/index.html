@@ -3237,9 +3237,9 @@
           if ((Number(g.em_falta) || 0) === 0 && tot > pago) {
             g.em_falta = tot - pago;
           }
-          // trimestre fallback from data_inicio (trip date determines IVA quarter)
+          // trimestre fallback from data_fim (IVA quarter = when service ends)
           if (!(g.trimestre || '').trim()) {
-            const dtSrc = g.data_inicio || g.data_reserva;
+            const dtSrc = g.data_fim || g.data_inicio || g.data_reserva;
             if (dtSrc) {
               const dr = new Date(dtSrc);
               if (!isNaN(dr.getTime())) {
@@ -4351,9 +4351,9 @@
 
         // Enrich HSP grupos: compute trimestre and IVA when stored as 0 (formula-computed in Sheets)
         gruposRaw.forEach(g => {
-          // trimestre fallback from data_inicio (trip date determines IVA quarter)
+          // trimestre fallback from data_fim (IVA quarter = when service ends)
           if (!(g.trimestre || '').trim()) {
-            const dtSrc = g.data_inicio || g.data_reserva;
+            const dtSrc = g.data_fim || g.data_inicio || g.data_reserva;
             if (dtSrc) {
               const dr = new Date(dtSrc);
               if (!isNaN(dr.getTime())) {
