@@ -3319,6 +3319,23 @@
             g.lucro_liquido_re_pct = tot > 0 ? g.lucro_liquido_re / tot : 0;
           }
         });
+        // IVA diagnostics
+        const _diag = { totalLb: 0, totalIva: 0, totalLl: 0, withFat: 0, withoutFat: 0, storedIva: 0 };
+        gruposRaw.forEach(g => {
+          const lb = Number(g.lucro_bruto_re) || 0;
+          const iva = Number(g.iva_sobre_lucro_re) || 0;
+          const hasFat = !!(g.fatura_nr || '').trim();
+          if (lb > 0) {
+            _diag.totalLb += lb;
+            _diag.totalIva += hasFat ? iva : 0;
+            _diag.totalLl += lb - (hasFat ? iva : 0);
+            if (hasFat) _diag.withFat++; else _diag.withoutFat++;
+          }
+        });
+        console.log('[ODV IVA] After enrichment — Total LB:', _diag.totalLb.toFixed(2),
+          '| IVA (groups with fatura):', _diag.totalIva.toFixed(2),
+          '| LL:', _diag.totalLl.toFixed(2),
+          '| Groups w/fatura:', _diag.withFat, '| w/o fatura:', _diag.withoutFat);
         // Derive pagamentos from enriched grupos (bypasses v_proximos_pagamentos view
         // which fails when em_falta is 0 in DB)
         const pagRaw = gruposRaw
