@@ -3229,7 +3229,7 @@
           if (!c.grupo_id) return;
           custoMap[c.grupo_id] = (custoMap[c.grupo_id] || 0) + (Number(c.total) || 0);
         });
-        // Enrich grupos: compute em_falta, lucro, IVA when DB values are 0 (formula-computed in Sheets)
+        // Enrich grupos: compute em_falta, lucro, IVA, trimestre when DB values are 0 (formula-computed in Sheets)
         gruposRaw.forEach(g => {
           const tot = Number(g.total) || 0;
           const pago = Number(g.pago) || 0;
@@ -3237,6 +3237,14 @@
           if ((Number(g.em_falta) || 0) === 0 && tot > pago) {
             g.em_falta = tot - pago;
           }
+          // trimestre fallback from data_reserva
+          if (!(g.trimestre || '').trim() && g.data_reserva) {
+            const dr = new Date(g.data_reserva);
+            if (!isNaN(dr.getTime())) {
+              g.trimestre = dr.getFullYear() + ' Q' + Math.ceil((dr.getMonth() + 1) / 3);
+            }
+          }
+          const isRE = (g.regime_venda || '').toLowerCase().includes('especial');
           // lucro fallback
           const storedLb = Number(g.lucro_bruto_re) || 0;
           const storedCusto = Number(g.custo_sem_merch) || 0;
@@ -3246,15 +3254,15 @@
               g.custo_sem_merch = custo;
               g.lucro_bruto_re = tot - custo;
               g.lucro_bruto_re_pct = tot > 0 ? (tot - custo) / tot : 0;
-              const iva = g.lucro_bruto_re > 0 ? Math.round(g.lucro_bruto_re * 0.23 * 100) / 100 : 0;
+              const iva = (isRE && g.lucro_bruto_re > 0) ? Math.round(g.lucro_bruto_re * 0.23 * 100) / 100 : 0;
               g.iva_sobre_lucro_re = iva;
               g.lucro_liquido_re = g.lucro_bruto_re - iva;
               g.lucro_liquido_re_pct = tot > 0 ? g.lucro_liquido_re / tot : 0;
             }
           }
-          // IVA fallback (lucro exists but IVA is 0)
+          // IVA fallback (lucro exists but IVA is 0) — only for Regime Especial
           const lb = Number(g.lucro_bruto_re) || 0;
-          if (lb > 0 && (Number(g.iva_sobre_lucro_re) || 0) === 0) {
+          if (isRE && lb > 0 && (Number(g.iva_sobre_lucro_re) || 0) === 0) {
             g.iva_sobre_lucro_re = Math.round(lb * 0.23 * 100) / 100;
             g.lucro_liquido_re = lb - g.iva_sobre_lucro_re;
             g.lucro_liquido_re_pct = tot > 0 ? g.lucro_liquido_re / tot : 0;
@@ -4339,8 +4347,15 @@
           sbQuery('v_faturas_em_falta', { eq: { marca: 'hsp' } }),
         ]);
 
-        // Enrich HSP grupos: compute IVA when stored as 0 (formula-computed in Sheets)
+        // Enrich HSP grupos: compute trimestre and IVA when stored as 0 (formula-computed in Sheets)
         gruposRaw.forEach(g => {
+          // trimestre fallback from data_reserva
+          if (!(g.trimestre || '').trim() && g.data_reserva) {
+            const dr = new Date(g.data_reserva);
+            if (!isNaN(dr.getTime())) {
+              g.trimestre = dr.getFullYear() + ' Q' + Math.ceil((dr.getMonth() + 1) / 3);
+            }
+          }
           const lb = Number(g.lucro_bruto_re) || 0;
           if (lb > 0 && (Number(g.iva_sobre_lucro_re) || 0) === 0) {
             g.iva_sobre_lucro_re = Math.round(lb * 0.23 * 100) / 100;
