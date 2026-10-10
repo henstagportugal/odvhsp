@@ -1,7 +1,5 @@
 -- Update ODV grupos financial fields from Excel export
 -- Generated from Outlet_Compras_Vendas_2.xlsx
-BEGIN;
-
 UPDATE grupos SET custo_sem_merch = 420.0, lucro_bruto_re = 80.0, lucro_bruto_re_pct = 0.16, iva_sobre_lucro_re = 14.95934959, lucro_liquido_re = 65.04065041, lucro_liquido_re_pct = 0.1300813008, em_falta = 0.0, trimestre = '2026 Q1', regime_venda = '' WHERE referencia = '#R1005' AND marca = 'odv';
 UPDATE grupos SET custo_sem_merch = 136.56, lucro_bruto_re = 38.44, lucro_bruto_re_pct = 0.2196571429, iva_sobre_lucro_re = 7.18796748, lucro_liquido_re = 31.25203252, lucro_liquido_re_pct = 0.178583043, em_falta = 0.0, trimestre = '2026 Q1', regime_venda = '' WHERE referencia = '#R1006' AND marca = 'odv';
 UPDATE grupos SET custo_sem_merch = 109.05, lucro_bruto_re = 17.75, lucro_bruto_re_pct = 0.1399842271, iva_sobre_lucro_re = 3.319105691, lucro_liquido_re = 14.43089431, lucro_liquido_re_pct = 0.1138083147, em_falta = 0.0, trimestre = '2026 Q2', regime_venda = '' WHERE referencia = '#R1012' AND marca = 'odv';
@@ -73,5 +71,3 @@ UPDATE grupos SET custo_sem_merch = 1120.32, lucro_bruto_re = 259.68, lucro_brut
 UPDATE grupos SET custo_sem_merch = 446.53, lucro_bruto_re = 93.47, lucro_bruto_re_pct = 0.1730925926, iva_sobre_lucro_re = 17.47813008, lucro_liquido_re = 75.99186992, lucro_liquido_re_pct = 0.140725685, em_falta = 0.0, trimestre = '2026 Q4', regime_venda = 'SA' WHERE referencia = '#OT1217' AND marca = 'odv';
 UPDATE grupos SET custo_sem_merch = 139.77, lucro_bruto_re = 20.23, lucro_bruto_re_pct = 0.1264375, iva_sobre_lucro_re = 3.782845528, lucro_liquido_re = 16.44715447, lucro_liquido_re_pct = 0.1027947154, em_falta = 0.0, trimestre = '2026 Q4', regime_venda = 'SA' WHERE referencia = '#OT1252' AND marca = 'odv';
 UPDATE grupos SET custo_sem_merch = 584.71, lucro_bruto_re = 123.29, lucro_bruto_re_pct = 0.1741384181, iva_sobre_lucro_re = 23.05422764, lucro_liquido_re = 100.2357724, lucro_liquido_re_pct = 0.1415759497, em_falta = 0.0, trimestre = '2026 Q4', regime_venda = 'PA' WHERE referencia = '#OT1247' AND marca = 'odv';
-
-COMMIT;

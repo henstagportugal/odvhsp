@@ -2,8 +2,6 @@
 -- Generated from Outlet_Compras_Vendas_2.xlsx
 -- Strategy: delete all existing ODV compras, then insert fresh from Excel
 -- compras_odv.grupo_id is a FK to grupos.id, so we need a subselect
-BEGIN;
-
 -- Remove existing compras_odv rows (all belong to ODV grupos)
 DELETE FROM compras_odv;
 
@@ -321,5 +319,3 @@ INSERT INTO compras_odv (grupo_id, cidade_pais, parceiro_nome, tipo, servico, qu
   VALUES ((SELECT id FROM grupos WHERE referencia = '#OT1247' AND marca = 'odv'), 'Cracóvia', 'W2M Next', 'Alojamento', NULL, 1.0, 209.91, 2.0, 'PA', 214.66, 209.91, 4.75, NULL, '2026-10-08', 'Sim', 'Em Espera', 'Transferencia');
 INSERT INTO compras_odv (grupo_id, cidade_pais, parceiro_nome, tipo, servico, quantidade, preco, nr_pessoas, regime, total, pago, em_falta, pagar_ate, data_pagamento, confirmacao_parceiro, fatura, metodo_pagamento)
   VALUES ((SELECT id FROM grupos WHERE referencia = '#OT1247' AND marca = 'odv'), 'Cracóvia', 'GBN Travel', 'Atividade', 'Auchwitz', 1.0, 95.76, 2.0, 'NA', 95.76, 95.76, 0.0, NULL, '2026-10-08', 'Sim', 'Em Espera', 'Transferencia');
-
-COMMIT;
