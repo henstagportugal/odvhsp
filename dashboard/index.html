@@ -3101,7 +3101,14 @@
     }
     function fmtVal(v) { return v != null ? String(v) : ''; }
     function fmtNum(v) { if (v == null) return '0'; return String(v).replace('.', ','); }
-    function fmtDate(v) { if (!v) return ''; return v; }
+    function fmtDate(v) {
+      if (!v) return '';
+      try {
+        const d = new Date(String(v).replace(/\//g,'-'));
+        if (isNaN(d.getTime())) return v;
+        return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+      } catch { return v; }
+    }
 
     // ── ODV VENDAS ADAPTER → array-of-arrays matching original Sheet column layout ──
     function odvGrupoToRow(g) {
@@ -3295,8 +3302,11 @@
             r[0] = fmtVal(g.referencia); r[1] = fmtVal(g.nome_cliente);
             r[2] = fmtVal(g.data_inicio); r[3] = fmtVal(g.data_fim);
             r[4] = fmtVal(g.cidade); r[7] = fmtVal(g.check_in_voo);
-            r[8] = fmtVal(g.data_inicio); r[9] = fmtVal(g.estado_pagamento);
-            r[10] = fmtVal(g.info); r[11] = fmtVal(g.data_fim);
+            // Check-in = day before flight: ida-1, volta-1
+            if (g.data_inicio) { const _d = new Date(g.data_inicio); _d.setDate(_d.getDate()-1); r[8] = _d.toISOString().split('T')[0]; }
+            r[9] = fmtVal(g.estado_pagamento);
+            r[10] = fmtVal(g.info);
+            if (g.data_fim) { const _d = new Date(g.data_fim); _d.setDate(_d.getDate()-1); r[11] = _d.toISOString().split('T')[0]; }
             return r;
           })];
 
@@ -3380,7 +3390,7 @@
         // ── TABELA PAGAMENTOS ──
         const sortedPag = pagData
           .map(r=>({nome:r[1]||'',grupoId:r[0]||'',porPagar:parseEuro(r[4]),data:r[5]||''}))
-          .sort((a,b)=>new Date(a.data.replace(/\//g,'-'))-new Date(b.data.replace(/\//g,'-')))
+          .sort((a,b)=>new Date(b.data.replace(/\//g,'-'))-new Date(a.data.replace(/\//g,'-')))
           .slice(0,10);
         document.getElementById('tbl-pagamentos').innerHTML = sortedPag.map(p => {
           const days = daysFromNow(p.data);
@@ -3399,6 +3409,7 @@
         }).join('');
 
         // ── TABELA DÍVIDAS ──
+        dividasData.sort((a,b) => (parseDate(b[3])||0) - (parseDate(a[3])||0));
         document.getElementById('tbl-dividas').innerHTML = dividasData.map(d => {
           const days = daysFromNow(d[3]);
           const past = days !== null && days < 0;
@@ -3796,7 +3807,7 @@
         const ll  = lb - _rIva;
         const dest  = (row[15]||'').trim() || '—';
         const fonte = (row[6]||'').trim()  || '—';
-        const canal = (row[5]||'').trim()  || '—';
+        const canal = (row[16]||'').trim()  || '—';
 
         // Travel month from Data IDA (col 13)
         const dIda = parseDate(row[13]);
@@ -4492,7 +4503,7 @@
         const t = new Date(d); t.setHours(0,0,0,0);
         if (t.getTime()===today.getTime()) return '<span class="badge-red px-2 py-0.5 rounded-full text-xs">Hoje</span>';
         if (t.getTime()===tomorrow.getTime()) return '<span class="badge-orange px-2 py-0.5 rounded-full text-xs">Amanhã</span>';
-        return `<span class="badge-gray px-2 py-0.5 rounded-full text-xs">${d}</span>`;
+        return `<span class="badge-gray px-2 py-0.5 rounded-full text-xs">${fmtDate(d)}</span>`;
       }
 
       // ── Próximas Despedidas (cols A-F, rows from row 4 = idx 3, header at row 3 = idx 2)
@@ -4533,7 +4544,7 @@
       const pnIdx = _fi(h => h === 'nome' || h.includes('nome'), 7);
       const pgIdx = _fi(h => h.includes('grupo'), 0);
       const pagRows = pagamentos.slice(1).filter(r => (r[pgIdx]||r[1]) && parseEuro(r[ppIdx]) > 0);
-      pagRows.sort((a,b)=>(parseDate(a[pdIdx])||0)-(parseDate(b[pdIdx])||0));
+      pagRows.sort((a,b)=>(parseDate(b[pdIdx])||0)-(parseDate(a[pdIdx])||0));
 
       function tbl(headers, rows, emptyMsg) {
         if (!rows.length) return `<tr><td colspan="${headers.length}" class="px-4 py-4 text-xs text-center" style="color:#334155">${emptyMsg}</td></tr>`;
@@ -4564,7 +4575,7 @@
                 return `<tr class="tbl-row" style="border-top:1px solid #1e2535">
                   <td class="px-4 py-2.5 text-xs font-mono val-purple">${id||'—'}</td>
                   <td class="px-4 py-2.5 text-xs" style="color:#e2e8f0">${r[7]||'—'}</td>
-                  <td class="px-4 py-2.5 text-xs ${urgent?'val-red':''}">${late?'⚠️ ':urgent?'⏰ ':''}${dayLabel(r[5])} ${r[5]||''}</td>
+                  <td class="px-4 py-2.5 text-xs ${urgent?'val-red':''}">${late?'⚠️ ':urgent?'⏰ ':''}${dayLabel(r[5])} ${fmtDate(r[5])||''}</td>
                   <td class="px-4 py-2.5 text-xs"><span class="px-2 py-0.5 rounded-full text-xs ${urgent?'badge-red':'badge-orange'}">${(r[13]||'').trim()||'Aguarda envio'}</span></td>
                 </tr>`;
               }).join('') : `<tr><td colspan="4" class="px-4 py-4 text-xs text-center" style="color:#334155">✅ Toda a info enviada</td></tr>`}
@@ -4590,8 +4601,8 @@
               <tbody>${despRows.length ? despRows.map(r=>`
                 <tr class="tbl-row" style="border-top:1px solid #1e2535">
                   <td class="px-4 py-2.5 text-xs font-mono val-purple">${r[0]||r[1]||''}</td>
-                  <td class="px-4 py-2.5 text-xs">${dayLabel(r[2])} ${r[2]||''}</td>
-                  <td class="px-4 py-2.5 text-xs" style="color:#64748b">${r[3]||''}</td>
+                  <td class="px-4 py-2.5 text-xs">${dayLabel(r[2])} ${fmtDate(r[2])||''}</td>
+                  <td class="px-4 py-2.5 text-xs" style="color:#64748b">${fmtDate(r[3])||''}</td>
                   <td class="px-4 py-2.5 text-xs" style="color:#94a3b8">${r[4]||''}</td>
                   <td class="px-4 py-2.5 text-xs" style="color:#64748b">${r[5]||''}</td>
                 </tr>`).join('') : `<tr><td colspan="5" class="px-4 py-4 text-xs text-center" style="color:#334155">Sem despedidas nos próximos 15 dias</td></tr>`}
@@ -4620,7 +4631,7 @@
                   <td class="px-4 py-2.5 text-xs font-mono val-purple">${r[7]||r[8]||''}</td>
                   <td class="px-4 py-2.5 text-xs" style="color:#e2e8f0">${r[10]||''}</td>
                   <td class="px-4 py-2.5 text-xs" style="color:#64748b">${r[13]||''}</td>
-                  <td class="px-4 py-2.5 text-xs">${dayLabel(r[11])} ${r[11]||''}</td>
+                  <td class="px-4 py-2.5 text-xs">${dayLabel(r[11])} ${fmtDate(r[11])||''}</td>
                   <td class="px-4 py-2.5 text-xs" style="color:#94a3b8">${r[12]||''}</td>
                   <td class="px-4 py-2.5 text-xs" style="color:#64748b">${r[14]||''}</td>
                 </tr>`).join('') : `<tr><td colspan="6" class="px-4 py-4 text-xs text-center" style="color:#334155">Sem atividades nos próximos 15 dias</td></tr>`}
@@ -4648,7 +4659,7 @@
                 <tr class="tbl-row" style="border-top:1px solid #1e2535">
                   <td class="px-4 py-2.5 text-xs font-mono val-purple">${r[16]||r[17]||''}</td>
                   <td class="px-4 py-2.5 text-xs" style="color:#e2e8f0">${r[18]||''}</td>
-                  <td class="px-4 py-2.5 text-xs">${dayLabel(r[19])} ${r[19]||''}</td>
+                  <td class="px-4 py-2.5 text-xs">${dayLabel(r[19])} ${fmtDate(r[19])||''}</td>
                   <td class="px-4 py-2.5 text-xs" style="color:#94a3b8">${r[20]||''}</td>
                   <td class="px-4 py-2.5 text-xs" style="color:#64748b">${r[23]||''}</td>
                   <td class="px-4 py-2.5 text-xs" style="color:#64748b">${r[24]||''}</td>
@@ -4679,7 +4690,7 @@
                     <td class="px-4 py-2.5 text-xs font-mono val-purple">${r[0]||r[1]||''}</td>
                     <td class="px-4 py-2.5 text-xs" style="color:#e2e8f0">${r[2]||''}</td>
                     <td class="px-4 py-2.5 text-xs ${late?'val-red':''}">
-                      ${late?'⚠️ ':''} ${r[4]||'—'}
+                      ${late?'⚠️ ':''} ${fmtDate(r[4])||'—'}
                     </td>
                     <td class="px-4 py-2.5 text-xs" style="color:#64748b">${r[6]||'—'}</td>
                   </tr>`;
@@ -4709,7 +4720,7 @@
                     <td class="px-4 py-2.5 text-xs font-mono val-purple">${r[pgIdx]||r[1]||''}</td>
                     <td class="px-4 py-2.5 text-xs" style="color:#e2e8f0">${r[pnIdx]||''}</td>
                     <td class="px-4 py-2.5 text-xs text-right val-orange font-medium">${fmt(parseEuro(r[ppIdx]))}</td>
-                    <td class="px-4 py-2.5 text-xs ${late?'val-red':''}">${late?'⚠️ ':''}${r[pdIdx]||'—'}</td>
+                    <td class="px-4 py-2.5 text-xs ${late?'val-red':''}">${late?'⚠️ ':''}${fmtDate(r[pdIdx])||'—'}</td>
                   </tr>`;
                 }).join('') : `<tr><td colspan="4" class="px-4 py-4 text-xs text-center" style="color:#334155">Sem pagamentos pendentes</td></tr>`}
                 </tbody>
@@ -4732,7 +4743,7 @@
                 <th class="px-4 py-2.5 text-left section-label">Pagar até</th>
               </tr></thead>
               <tbody>${(()=>{
-                const divRows = _hsDividas.filter(r=>parseEuro(r[4])>0).sort((a,b)=>(parseDate(a[5])||0)-(parseDate(b[5])||0));
+                const divRows = _hsDividas.filter(r=>parseEuro(r[4])>0).sort((a,b)=>(parseDate(b[5])||0)-(parseDate(a[5])||0));
                 if (!divRows.length) return '<tr><td colspan="4" class="px-4 py-4 text-xs text-center" style="color:#334155">Sem dívidas a parceiros</td></tr>';
                 return divRows.map(r=>{
                   const d = parseDate(r[5]);
@@ -4741,7 +4752,7 @@
                     <td class="px-4 py-2.5 text-xs font-medium" style="color:#e2e8f0">${r[1]||'—'}</td>
                     <td class="px-4 py-2.5 text-xs font-mono val-purple">${r[2]||'—'}</td>
                     <td class="px-4 py-2.5 text-xs text-right val-red font-medium">${fmt(parseEuro(r[4]))}</td>
-                    <td class="px-4 py-2.5 text-xs ${late?'val-red':''}">${late?'⚠️ ':''}${r[5]||'—'}</td>
+                    <td class="px-4 py-2.5 text-xs ${late?'val-red':''}">${late?'⚠️ ':''}${fmtDate(r[5])||'—'}</td>
                   </tr>`;
                 }).join('');
               })()}</tbody>
@@ -4824,19 +4835,19 @@
       // Próximos pagamentos (col T = idx 19)
       const proxPag = rows
         .filter(r => parseEuro(r[18]) > 0 && r[19])
-        .sort((a,b) => (parseDate(a[19])||0) - (parseDate(b[19])||0))
+        .sort((a,b) => (parseDate(b[19])||0) - (parseDate(a[19])||0))
         .slice(0, 8);
       const tbody = document.getElementById('hs-tbl-proxpag');
       tbody.innerHTML = proxPag.map(r => `
         <tr class="tbl-row" style="border-top:1px solid #1e2535">
           <td class="px-0 py-2 text-xs" style="color:#94a3b8">${(r[0]||r[1]||'')} ${r[7]||''}</td>
           <td class="px-0 py-2 text-xs text-right val-orange font-medium">${fmt(parseEuro(r[18]))}</td>
-          <td class="px-0 py-2 text-xs text-right" style="color:#475569">${r[19]||''}</td>
+          <td class="px-0 py-2 text-xs text-right" style="color:#475569">${fmtDate(r[19])||''}</td>
         </tr>`).join('') || '<tr><td colspan="3" class="px-4 py-4 text-xs text-center" style="color:#334155">Sem pagamentos em falta</td></tr>';
 
       // Dívidas a parceiros
       const today3 = new Date(); today3.setHours(0,0,0,0);
-      const divPos = _hsDividas.filter(r => parseEuro(r[4]) > 0).sort((a,b)=>(parseDate(a[5])||0)-(parseDate(b[5])||0));
+      const divPos = _hsDividas.filter(r => parseEuro(r[4]) > 0).sort((a,b)=>(parseDate(b[5])||0)-(parseDate(a[5])||0));
       const totalDividas = divPos.reduce((s,r)=>s+parseEuro(r[4]),0);
       setText('hs-dividas-total', fmt(totalDividas));
       // Balanço
@@ -4855,7 +4866,7 @@
           <td class="px-0 py-2 text-xs font-medium" style="color:#e2e8f0">${r[1]||'—'}</td>
           <td class="px-0 py-2 text-xs font-mono val-purple">${r[2]||'—'}</td>
           <td class="px-0 py-2 text-xs text-right val-red font-medium">${fmt(parseEuro(r[4]))}</td>
-          <td class="px-0 py-2 text-xs text-right ${late?'val-red':''}">${late?'⚠️ ':''}${r[5]||'—'}</td>
+          <td class="px-0 py-2 text-xs text-right ${late?'val-red':''}">${late?'⚠️ ':''}${fmtDate(r[5])||'—'}</td>
         </tr>`;
       }).join('') : '<tr><td colspan="4" class="px-4 py-4 text-xs text-center" style="color:#334155">Sem dívidas a parceiros</td></tr>';
     }
@@ -4893,7 +4904,7 @@
           <td class="px-4 py-2.5 text-xs" style="color:#64748b">${r[3]||''}</td>
           <td class="px-4 py-2.5 text-xs" style="color:#64748b">${r[10]||''}</td>
           <td class="px-4 py-2.5 text-xs text-right" style="color:#94a3b8">${r[4]||''}</td>
-          <td class="px-4 py-2.5 text-xs" style="color:#64748b">${r[5]||''}</td>
+          <td class="px-4 py-2.5 text-xs" style="color:#64748b">${fmtDate(r[5])||''}</td>
           <td class="px-4 py-2.5 text-xs text-right font-medium val-purple">${fmt(parseEuro(r[15]))}</td>
           <td class="px-4 py-2.5 text-xs text-right" style="color:#2dd4bf">${fmt(_llRow)}</td>
           <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${badgePag}">${estadoPag||'—'}</span></td>
@@ -6360,7 +6371,7 @@
           <td class="px-4 py-2.5 text-xs">${t.icon} <span style="color:#94a3b8">${t.type}</span></td>
           <td class="px-4 py-2.5 text-xs" style="color:#e2e8f0">${t.nome}<br><span class="font-mono" style="color:#475569;font-size:10px">${t.sub}</span></td>
           <td class="px-4 py-2.5 text-xs text-right" style="color:#94a3b8">${t.valor}</td>
-          <td class="px-4 py-2.5 text-xs ${redFlag?'val-red':''}">${redFlag?'⚠️ ':''}${t.data||'—'}</td>
+          <td class="px-4 py-2.5 text-xs ${redFlag?'val-red':''}">${redFlag?'⚠️ ':''}${fmtDate(t.data)||'—'}</td>
         </tr>`;
       }
 
@@ -6432,7 +6443,7 @@
           <td class="px-4 py-2.5 text-xs">${t.icon} <span style="color:#94a3b8">${t.type}</span></td>
           <td class="px-4 py-2.5 text-xs" style="color:#e2e8f0">${t.nome}<br><span class="font-mono" style="color:#475569;font-size:10px">${t.sub}</span></td>
           <td class="px-4 py-2.5 text-xs text-right" style="color:#94a3b8">${t.valor}</td>
-          <td class="px-4 py-2.5 text-xs ${redFlag?'val-red':''}">${redFlag?'⚠️ ':''}${t.data||'—'}</td>
+          <td class="px-4 py-2.5 text-xs ${redFlag?'val-red':''}">${redFlag?'⚠️ ':''}${fmtDate(t.data)||'—'}</td>
         </tr>`;
       }
       function sec(title, rows) {
