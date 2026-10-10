@@ -3178,26 +3178,37 @@
     async function getSheetNames() { return []; }
 
     // HSP dívidas: query compras tables directly (avoids v_divida_parceiros_hsp
-    // view which requires parceiro_id JOIN and drops rows where parceiro_id is NULL)
+    // view which requires parceiro_id JOIN and drops rows where parceiro_id is NULL).
+    // Also computes em_falta = total - pago when em_falta is 0 (formula-computed in Sheets).
     async function _queryDividasHsp() {
-      const sel = 'parceiro_id, parceiro_nome, pago, em_falta, pagar_ate, grupo_id, grupos!inner(referencia, marca)';
+      const sel = 'parceiro_id, parceiro_nome, total, pago, em_falta, pagar_ate, grupo_id, grupos!inner(referencia, marca)';
+      const selMerch = 'parceiro_id, parceiro_nome, total_c_iva, pago, em_falta, pagar_ate, grupo_id, grupos!inner(referencia, marca)';
       const [a, b, c, d] = await Promise.all([
-        sbQuery('compras_atividades', { select: sel, neq: { em_falta: 0 } }),
-        sbQuery('compras_alojamento', { select: sel, neq: { em_falta: 0 } }),
-        sbQuery('compras_transfers',  { select: sel, neq: { em_falta: 0 } }),
-        sbQuery('compras_merch',      { select: sel, neq: { em_falta: 0 } }),
+        sbQuery('compras_atividades', { select: sel, gt: { total: 0 } }),
+        sbQuery('compras_alojamento', { select: sel, gt: { total: 0 } }),
+        sbQuery('compras_transfers',  { select: sel, gt: { total: 0 } }),
+        sbQuery('compras_merch',      { select: selMerch, gt: { total_c_iva: 0 } }),
       ]);
-      return [...a, ...b, ...c, ...d]
+      const all = [
+        ...a, ...b, ...c,
+        ...d.map(r => ({ ...r, total: r.total_c_iva })),
+      ];
+      return all
         .filter(r => r.grupos?.marca === 'hsp')
-        .map(r => ({
-          parceiro_id: r.parceiro_id,
-          parceiro: r.parceiro_nome || '',
-          referencia: r.grupos?.referencia || '',
-          marca: 'hsp',
-          pago: r.pago,
-          em_falta: r.em_falta,
-          pagar_ate: r.pagar_ate,
-        }));
+        .map(r => {
+          const emFalta = (Number(r.em_falta) || 0) || ((Number(r.total) || 0) - (Number(r.pago) || 0));
+          if (emFalta === 0) return null;
+          return {
+            parceiro_id: r.parceiro_id,
+            parceiro: r.parceiro_nome || '',
+            referencia: r.grupos?.referencia || '',
+            marca: 'hsp',
+            pago: r.pago,
+            em_falta: emFalta,
+            pagar_ate: r.pagar_ate,
+          };
+        })
+        .filter(Boolean);
     }
 
     // ── LOAD DATA ──
@@ -3206,12 +3217,10 @@
       show('loading-msg');
       try {
         // ── Fetch from Supabase ──
-        const [gruposRaw, dividasRaw, pagRaw, viagRaw, comprasOdvRaw] = await Promise.all([
+        const [gruposRaw, dividasRaw, comprasOdvRaw] = await Promise.all([
           sbQuery('grupos', { eq: { marca: 'odv' } }),
           sbQuery('v_divida_parceiros_odv'),
-          sbQuery('v_proximos_pagamentos', { eq: { marca: 'odv' } }),
-          sbQuery('grupos', { eq: { marca: 'odv' } }),
-          sbQuery('compras_odv', { select: 'grupo_id, total' }),
+          sbQuery('compras_odv', { select: 'grupo_id, total, pago' }),
         ]);
 
         // Compute custo per grupo from compras_odv (for lucro fallback)
@@ -3220,24 +3229,47 @@
           if (!c.grupo_id) return;
           custoMap[c.grupo_id] = (custoMap[c.grupo_id] || 0) + (Number(c.total) || 0);
         });
+        // Enrich grupos: compute em_falta, lucro, IVA when DB values are 0 (formula-computed in Sheets)
         gruposRaw.forEach(g => {
           const tot = Number(g.total) || 0;
+          const pago = Number(g.pago) || 0;
+          // em_falta fallback
+          if ((Number(g.em_falta) || 0) === 0 && tot > pago) {
+            g.em_falta = tot - pago;
+          }
+          // lucro fallback
           const storedLb = Number(g.lucro_bruto_re) || 0;
           const storedCusto = Number(g.custo_sem_merch) || 0;
           if (storedLb === 0 && tot > 0) {
             const custo = custoMap[g.id] || storedCusto;
-            if (custo > 0 || storedCusto > 0) {
-              const c = custo || storedCusto;
-              g.custo_sem_merch = c;
-              g.lucro_bruto_re = tot - c;
-              g.lucro_bruto_re_pct = tot > 0 ? (tot - c) / tot : 0;
+            if (custo > 0) {
+              g.custo_sem_merch = custo;
+              g.lucro_bruto_re = tot - custo;
+              g.lucro_bruto_re_pct = tot > 0 ? (tot - custo) / tot : 0;
               const iva = g.lucro_bruto_re > 0 ? Math.round(g.lucro_bruto_re * 0.23 * 100) / 100 : 0;
               g.iva_sobre_lucro_re = iva;
               g.lucro_liquido_re = g.lucro_bruto_re - iva;
               g.lucro_liquido_re_pct = tot > 0 ? g.lucro_liquido_re / tot : 0;
             }
           }
+          // IVA fallback (lucro exists but IVA is 0)
+          const lb = Number(g.lucro_bruto_re) || 0;
+          if (lb > 0 && (Number(g.iva_sobre_lucro_re) || 0) === 0) {
+            g.iva_sobre_lucro_re = Math.round(lb * 0.23 * 100) / 100;
+            g.lucro_liquido_re = lb - g.iva_sobre_lucro_re;
+            g.lucro_liquido_re_pct = tot > 0 ? g.lucro_liquido_re / tot : 0;
+          }
         });
+        // Derive pagamentos from enriched grupos (bypasses v_proximos_pagamentos view
+        // which fails when em_falta is 0 in DB)
+        const pagRaw = gruposRaw
+          .filter(g => (Number(g.em_falta) || 0) > 0 && g.estado_pagamento !== 'Cancelado')
+          .sort((a, b) => {
+            const da = a.proximo_pagamento || '9999';
+            const db = b.proximo_pagamento || '9999';
+            return da < db ? -1 : da > db ? 1 : 0;
+          });
+        const viagRaw = gruposRaw;
 
         // ── Adapt to array-of-arrays ──
         const vendas = [ODV_VENDAS_HEADER, ...gruposRaw.map(odvGrupoToRow)];
@@ -4306,6 +4338,17 @@
           _queryDividasHsp(),
           sbQuery('v_faturas_em_falta', { eq: { marca: 'hsp' } }),
         ]);
+
+        // Enrich HSP grupos: compute IVA when stored as 0 (formula-computed in Sheets)
+        gruposRaw.forEach(g => {
+          const lb = Number(g.lucro_bruto_re) || 0;
+          if (lb > 0 && (Number(g.iva_sobre_lucro_re) || 0) === 0) {
+            g.iva_sobre_lucro_re = Math.round(lb * 0.23 * 100) / 100;
+            g.lucro_liquido_re = lb - g.iva_sobre_lucro_re;
+            const tot = Number(g.total) || 0;
+            g.lucro_liquido_re_pct = tot > 0 ? g.lucro_liquido_re / tot : 0;
+          }
+        });
 
         // ── Grupos-Info → rows array (header + data) ──
         const hsHeader = ['Grupo ID','Venda ID','Data Reserva','País Origem','Nr Pessoas',
