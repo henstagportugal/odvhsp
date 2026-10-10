@@ -3231,14 +3231,13 @@
         });
 
         // Enrich grupos: compute em_falta, lucro, IVA, trimestre when DB values are 0 (formula-computed in Sheets)
+        const enrichNow = new Date();
         gruposRaw.forEach(g => {
           const tot = Number(g.total) || 0;
           const pago = Number(g.pago) || 0;
-          // em_falta fallback
           if ((Number(g.em_falta) || 0) === 0 && tot > pago) {
             g.em_falta = tot - pago;
           }
-          // trimestre fallback from data_fim (IVA quarter = when service ends)
           if (!(g.trimestre || '').trim()) {
             const dtSrc = g.data_fim || g.data_inicio || g.data_reserva;
             if (dtSrc) {
@@ -3248,7 +3247,10 @@
               }
             }
           }
-          // lucro fallback
+          // IVA only applies after service delivery (data_fim in the past)
+          const dfStr = g.data_fim || '';
+          const df = dfStr ? new Date(dfStr) : null;
+          const svcDone = df && !isNaN(df.getTime()) && df <= enrichNow;
           const storedLb = Number(g.lucro_bruto_re) || 0;
           const storedCusto = Number(g.custo_sem_merch) || 0;
           if (storedLb === 0 && tot > 0) {
@@ -3257,15 +3259,14 @@
               g.custo_sem_merch = custo;
               g.lucro_bruto_re = tot - custo;
               g.lucro_bruto_re_pct = tot > 0 ? (tot - custo) / tot : 0;
-              const iva = g.lucro_bruto_re > 0 ? Math.round(g.lucro_bruto_re * 0.23 * 100) / 100 : 0;
+              const iva = (g.lucro_bruto_re > 0 && svcDone) ? Math.round(g.lucro_bruto_re * 0.23 * 100) / 100 : 0;
               g.iva_sobre_lucro_re = iva;
               g.lucro_liquido_re = g.lucro_bruto_re - iva;
               g.lucro_liquido_re_pct = tot > 0 ? g.lucro_liquido_re / tot : 0;
             }
           }
-          // IVA fallback (lucro exists but IVA is 0)
           const lb = Number(g.lucro_bruto_re) || 0;
-          if (lb > 0 && (Number(g.iva_sobre_lucro_re) || 0) === 0) {
+          if (lb > 0 && svcDone && (Number(g.iva_sobre_lucro_re) || 0) === 0) {
             g.iva_sobre_lucro_re = Math.round(lb * 0.23 * 100) / 100;
             g.lucro_liquido_re = lb - g.iva_sobre_lucro_re;
             g.lucro_liquido_re_pct = tot > 0 ? g.lucro_liquido_re / tot : 0;
