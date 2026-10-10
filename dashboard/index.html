@@ -3217,11 +3217,16 @@
       show('loading-msg');
       try {
         // ── Fetch from Supabase ──
+        let odvPagClienteRaw = [];
         const [gruposRaw, dividasRaw, comprasOdvRaw] = await Promise.all([
           sbQuery('grupos', { eq: { marca: 'odv' } }),
           sbQuery('v_divida_parceiros_odv'),
           sbQuery('compras_odv', { select: 'grupo_id, total, pago' }),
         ]);
+        try {
+          odvPagClienteRaw = await sbQuery('pagamentos_cliente', { select: '*, grupos!inner(id, referencia, nome_cliente, marca)' });
+          odvPagClienteRaw = odvPagClienteRaw.filter(p => p.grupos?.marca === 'odv');
+        } catch(e) { console.warn('ODV pagamentos_cliente query failed', e); }
 
         // Compute custo per grupo from compras_odv (for lucro fallback)
         const custoMap = {};
@@ -3229,6 +3234,28 @@
           if (!c.grupo_id) return;
           custoMap[c.grupo_id] = (custoMap[c.grupo_id] || 0) + (Number(c.total) || 0);
         });
+
+        // Build ODV gruposPag array (same structure as HSP) for Regime Especial detection
+        const odvGruposPag = odvPagClienteRaw.map(p => [
+          fmtVal(p.grupos?.referencia), fmtVal(p.grupos?.nome_cliente),
+          fmtNum(p.valor), fmtVal(p.forma_pagamento), fmtVal(p.codigo_venda_site),
+          fmtVal(p.data_pagamento), p.tem_fatura ? 'Sim' : '', fmtVal(p.regime),
+          fmtVal(p.fatura_nr), '', '', ''
+        ]);
+        // Build Set of grupo IDs that are Regime Especial (have payment with regime containing 'especial' AND fatura)
+        const odvReGrupoIds = new Set();
+        odvPagClienteRaw.forEach(p => {
+          const regime = (p.regime || '').toLowerCase();
+          if (regime.includes('especial') && (p.fatura_nr || '').trim()) {
+            odvReGrupoIds.add(p.grupo_id);
+          }
+        });
+        // Store globally for rendering
+        window._odvGruposPag = odvGruposPag;
+        console.log('[ODV IVA] pagamentos_cliente loaded:', odvPagClienteRaw.length, 'entries');
+        console.log('[ODV IVA] Regime values found:', [...new Set(odvPagClienteRaw.map(p => p.regime).filter(Boolean))]);
+        console.log('[ODV IVA] RE grupos:', odvReGrupoIds.size, 'of', gruposRaw.length, 'total');
+
         // Enrich grupos: compute em_falta, lucro, IVA, trimestre when DB values are 0 (formula-computed in Sheets)
         gruposRaw.forEach(g => {
           const tot = Number(g.total) || 0;
@@ -3247,6 +3274,8 @@
               }
             }
           }
+          // Determine if this grupo is Regime Especial
+          const isRE = odvReGrupoIds.has(g.id);
           // lucro fallback
           const storedLb = Number(g.lucro_bruto_re) || 0;
           const storedCusto = Number(g.custo_sem_merch) || 0;
@@ -3256,15 +3285,20 @@
               g.custo_sem_merch = custo;
               g.lucro_bruto_re = tot - custo;
               g.lucro_bruto_re_pct = tot > 0 ? (tot - custo) / tot : 0;
-              const iva = g.lucro_bruto_re > 0 ? Math.round(g.lucro_bruto_re * 0.23 * 100) / 100 : 0;
-              g.iva_sobre_lucro_re = iva;
-              g.lucro_liquido_re = g.lucro_bruto_re - iva;
+              if (isRE && g.lucro_bruto_re > 0) {
+                const iva = Math.round(g.lucro_bruto_re * 0.23 * 100) / 100;
+                g.iva_sobre_lucro_re = iva;
+                g.lucro_liquido_re = g.lucro_bruto_re - iva;
+              } else {
+                g.iva_sobre_lucro_re = 0;
+                g.lucro_liquido_re = g.lucro_bruto_re;
+              }
               g.lucro_liquido_re_pct = tot > 0 ? g.lucro_liquido_re / tot : 0;
             }
           }
-          // IVA fallback (lucro exists but IVA is 0)
+          // IVA fallback (lucro exists but IVA is 0) — only for RE groups
           const lb = Number(g.lucro_bruto_re) || 0;
-          if (lb > 0 && (Number(g.iva_sobre_lucro_re) || 0) === 0) {
+          if (isRE && lb > 0 && (Number(g.iva_sobre_lucro_re) || 0) === 0) {
             g.iva_sobre_lucro_re = Math.round(lb * 0.23 * 100) / 100;
             g.lucro_liquido_re = lb - g.iva_sobre_lucro_re;
             g.lucro_liquido_re_pct = tot > 0 ? g.lucro_liquido_re / tot : 0;
@@ -3426,12 +3460,14 @@
         buildContabilidade(now, vendas.slice(1));
 
         // ── STORE GLOBAL STATE FOR GERAL ──
+        window._odvGruposPag = odvGruposPag;
         window._outletState = {
           fatMes, fatAno, lbMes, lbAno, llMes, llAno,
           fatMesPassado,
           totalReceber, totalDividas,
           pagData, dividasData, viagData,
           vendas: vendas.slice(1),
+          gruposPag: odvGruposPag,
         };
         if (window._geralPending) renderGeral();
         if (typeof renderCalendar === 'function' && !document.getElementById('page-cal').classList.contains('hidden')) renderCalendar();
