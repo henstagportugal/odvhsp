@@ -3263,9 +3263,9 @@
             }
           }
           const lb = Number(g.lucro_bruto_re) || 0;
-          if (lb > 0 && (Number(g.iva_sobre_lucro_re) || 0) === 0) {
-            g.iva_sobre_lucro_re = lb * IVA_FRAC;
-            g.lucro_liquido_re = lb - g.iva_sobre_lucro_re;
+          if (lb > 0 && (Number(g.lucro_liquido_re) || 0) === 0) {
+            const iva = (Number(g.iva_sobre_lucro_re) || 0);
+            g.lucro_liquido_re = lb - iva;
             g.lucro_liquido_re_pct = tot > 0 ? g.lucro_liquido_re / tot : 0;
           }
         });
@@ -4361,9 +4361,9 @@
             }
           }
           const lb = Number(g.lucro_bruto_re) || 0;
-          if (lb > 0 && (Number(g.iva_sobre_lucro_re) || 0) === 0) {
-            g.iva_sobre_lucro_re = lb * HSP_IVA_FRAC;
-            g.lucro_liquido_re = lb - g.iva_sobre_lucro_re;
+          if (lb > 0 && (Number(g.lucro_liquido_re) || 0) === 0) {
+            const iva = (Number(g.iva_sobre_lucro_re) || 0);
+            g.lucro_liquido_re = lb - iva;
             const tot = Number(g.total) || 0;
             g.lucro_liquido_re_pct = tot > 0 ? g.lucro_liquido_re / tot : 0;
           }
