@@ -3736,6 +3736,7 @@
         ];
         header.forEach(function(h,ci){
           var hv=(''+(h||'')).trim(); var v=(''+(r[ci]==null?'':r[ci])).trim(); if(!hv||!v) return;
+          if (/^\d{4}-\d{2}-\d{2}/.test(v)) v = fmtDate(v);
           var hl=hv.toLowerCase(), placed=false;
           for(var s=0;s<secs.length-1;s++){ if(secs[s].k.some(function(kw){return hl.indexOf(kw)>-1;})){ secs[s].rows.push([hv,v]); placed=true; break; } }
           if(!placed) secs[secs.length-1].rows.push([hv,v]);
@@ -6649,7 +6650,7 @@
         <th class="pb-1 text-right section-label">IVA ded.</th>
       </tr></thead><tbody>
         ${sorted.map(r=>`<tr style="border-top:1px solid #1e2535">
-          <td class="py-1" style="color:#64748b">${r[idx.iData]||''}</td>
+          <td class="py-1" style="color:#64748b">${fmtDate(r[idx.iData])||''}</td>
           <td class="py-1" style="color:#e2e8f0">${r[idx.iEmpresa]||''}</td>
           <td class="py-1" style="color:#94a3b8">${r[idx.iTipo]||''}</td>
           <td class="py-1 text-right val-red">${fmt(parseEuro(r[idx.iValor]))}</td>
@@ -6683,7 +6684,7 @@
         <th class="px-4 py-2 text-left section-label">Conta</th>
       </tr></thead><tbody>
         ${sorted.map(r=>`<tr class="tbl-row" style="border-top:1px solid #1e2535">
-          <td class="px-4 py-2 text-xs" style="color:#64748b">${r[idx.iData]||''}</td>
+          <td class="px-4 py-2 text-xs" style="color:#64748b">${fmtDate(r[idx.iData])||''}</td>
           <td class="px-4 py-2 text-xs" style="color:#e2e8f0">${r[idx.iEmpresa]||''}</td>
           <td class="px-4 py-2 text-xs text-right val-red font-medium">${fmt(parseEuro(r[idx.iValor]))}</td>
           <td class="px-4 py-2 text-xs text-right val-green">${parseEuro(r[idx.iIvaDed])>0?fmt(parseEuro(r[idx.iIvaDed])):'—'}</td>
