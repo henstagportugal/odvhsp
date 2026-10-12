@@ -3132,7 +3132,7 @@
       row[32] = fmtNum(g.lucro_bruto_re); row[33] = fmtNum(g.lucro_bruto_re_pct);
       row[34] = fmtNum(g.iva_sobre_lucro_re); row[35] = fmtNum(g.lucro_liquido_re);
       row[36] = fmtNum(g.lucro_liquido_re_pct); row[37] = fmtVal(g.notas);
-      row[38] = fmtVal(g.pago_pct); row[39] = '';
+      row[38] = fmtVal(g.pago_pct); row[39] = fmtVal(g.info);
       row[40] = fmtVal(g.trimestre); row[41] = fmtVal(g.nr_faturas_em_falta);
       row[42] = fmtVal(g.faturas_em_falta);
       return row;
@@ -3145,7 +3145,7 @@
       'Em Falta','Próximo Pagamento','Estado Pagamento','Incluído','Desconto',
       'Regime Venda','Total €','Tipo Grupo','Confirmação Parceiros','Resumo Compras',
       'Pasta Faturas','Custo Grupo','Lucro Bruto','Margem LB %','IVA sobre Lucro',
-      'Lucro Líquido','Margem LL %','Notas','% Pago','',
+      'Lucro Líquido','Margem LL %','Notas','% Pago','Info',
       'Trimestre IVA','Faturas Ratio','Faturas em Falta'
     ];
 
@@ -3227,7 +3227,7 @@
         const [gruposRaw, dividasRaw, comprasOdvRaw] = await Promise.all([
           sbQuery('grupos', { eq: { marca: 'odv' } }),
           sbQuery('v_divida_parceiros_odv'),
-          sbQuery('compras_odv', { select: 'grupo_id, total, pago' }),
+          sbQuery('compras_odv', { select: 'grupo_id, total, pago, tem_fatura' }),
         ]);
 
         // Compute custo per grupo from compras_odv (for lucro fallback)
@@ -3235,6 +3235,17 @@
         (comprasOdvRaw || []).forEach(c => {
           if (!c.grupo_id) return;
           custoMap[c.grupo_id] = (custoMap[c.grupo_id] || 0) + (Number(c.total) || 0);
+        });
+
+        // Compute fatura ratio per grupo from compras_odv (replicates Sheets formula column)
+        const faturaRatioMap = {};
+        (comprasOdvRaw || []).forEach(c => {
+          if (!c.grupo_id) return;
+          if (!faturaRatioMap[c.grupo_id]) faturaRatioMap[c.grupo_id] = { has: 0, total: 0 };
+          if ((Number(c.total) || 0) > 0) {
+            faturaRatioMap[c.grupo_id].total++;
+            if (c.tem_fatura === 'Sim') faturaRatioMap[c.grupo_id].has++;
+          }
         });
 
         // Enrich grupos: compute em_falta, lucro, IVA, trimestre when DB values are 0 (formula-computed in Sheets)
@@ -3274,6 +3285,11 @@
             const iva = (Number(g.iva_sobre_lucro_re) || 0);
             g.lucro_liquido_re = lb - iva;
             g.lucro_liquido_re_pct = tot > 0 ? g.lucro_liquido_re / tot : 0;
+          }
+          // Set nr_faturas_em_falta ratio from compras_odv when DB value is empty
+          const fr = faturaRatioMap[g.id];
+          if (fr && fr.total > 0 && !(g.nr_faturas_em_falta || '').trim()) {
+            g.nr_faturas_em_falta = fr.has + '/' + fr.total;
           }
         });
         // Derive pagamentos from enriched grupos (bypasses v_proximos_pagamentos view
@@ -3669,9 +3685,10 @@
         tipo: colIdx('tipo de compra','tipo de reserva','tipo'),
         info: colIdx('info','info enviad','envio info','informa','enviad'),
         fatura: colIdx('fatura','faturação','faturacao','recibo'),
-        pag: colIdx('pagamento','estado pag','situação pag','pago','recebid')
+        pag: colIdx('estado pagamento','estado pag','situação pag')
       };
       if(cols.dest<0) cols.dest=15;
+      cols.proxPag = colIdx('próximo pagamento','próximo pag'); if(cols.proxPag<0) cols.proxPag=21;
       cols.saida = colIdx('data de ida','data ida','data de saída','data saida','data de partida'); if(cols.saida<0) cols.saida=13;
       cols.volta = colIdx('data de volta','data volta','data de regresso','data regresso','regresso','data de fim','data fim','check-out','checkout','data de chegada');
       var _ov=gruposColsLoad(); Object.keys(_ov).forEach(function(k){ if(_ov[k]!=null && !isNaN(_ov[k])) cols[k]=_ov[k]; });
@@ -3714,12 +3731,13 @@
         else { badges.push(_grupoBadge('ℹ️ '+gEsc(iv),'rgba(245,158,11,.14)','#fbbf24','rgba(245,158,11,.35)')); }
       }
       if(c.pag>-1){
-        // Convenção da folha: coluna vazia = já pago; com data/valor = ainda por pagar (data-limite).
         var pv=(''+(r[c.pag]||'')).trim(); var pl=pv.toLowerCase();
-        if(pv===''||/pago|liquidad|recebid|regulariz|^sim$|^s$|✓|✔/.test(pl)){
+        if(pl==='pago'){
           badges.push(_grupoBadge('✅ Pago','rgba(52,211,153,.14)','#34d399','rgba(52,211,153,.35)'));
-        } else {
-          badges.push(_grupoBadge('💳 Por pagar · '+gEsc(pv),'rgba(239,68,68,.12)','#f87171','rgba(239,68,68,.3)'));
+        } else if(pl!=='cancelado') {
+          var proxDate = c.proxPag>-1 ? (''+(r[c.proxPag]||'')).trim() : '';
+          var dateStr = proxDate ? fmtDate(proxDate) : '';
+          badges.push(_grupoBadge('💳 Por pagar'+(dateStr?' · '+gEsc(dateStr):''),'rgba(239,68,68,.12)','#f87171','rgba(239,68,68,.3)'));
         }
       }
       var badgesHtml=badges.length?('<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">'+badges.join('')+'</div>'):'';
@@ -4467,7 +4485,7 @@
         _hsRows = rows.slice(1).filter(r => r[0] || r[7]);
         window._hsRows = _hsRows;
         _hsPagamentos = pagamentos;
-        _hsDividas = dividas.slice(1).filter(r => r[0] && parseEuro(r[4]) !== 0);
+        _hsDividas = dividas.slice(1).filter(r => (r[0] || r[1]) && parseEuro(r[4]) !== 0);
         const _gpHeader = (gruposPag[0]||[]).map(h => norm(String(h||'')));
         let _gpFatIdx = _gpHeader.findIndex(h => h.includes('fatura') && (h.includes('nr') || h.includes('num')));
         if (_gpFatIdx < 0) _gpFatIdx = _gpHeader.findIndex(h => h.includes('fatura') && !h.includes('?'));
@@ -9971,6 +9989,14 @@
         const daysToGo = Math.round((dt - today) / 86400000);
         if (daysToGo < 0 || daysToGo <= 5)
           addTask('✈️','📧','Info a enviar',(row[1]||row[0]||'').trim()||'Grupo',info,d.toLocaleDateString('pt-PT'),dt);
+      });
+      // Viagens com partida hoje/atraso (viagData: col2=DataInicio, col4=Cidade)
+      (o.viagData||[]).forEach(row => {
+        const d = parseDate(row[2]); if (!d) return;
+        const dt = new Date(d); dt.setHours(0,0,0,0);
+        if (dt.getTime() === today.getTime()) {
+          addTask('✈️','🧳','Viagem hoje',(row[1]||row[0]||'').trim()||'Grupo',(row[4]||'').trim(),d.toLocaleDateString('pt-PT'),dt);
+        }
       });
       // Dívidas de cliente hoje/atraso (pagData: r[5]=data, r[4]=valor, r[1]/r[0]=nome)
       if (o.pagData) {
