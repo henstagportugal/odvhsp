@@ -3238,12 +3238,13 @@
         });
 
         // Compute fatura ratio per grupo from compras_odv (replicates Sheets formula column)
+        // Only count purchases where tem_fatura is explicitly set (not NULL)
         const faturaRatioMap = {};
         const faturaDetailMap = {};
         (comprasOdvRaw || []).forEach(c => {
           if (!c.grupo_id) return;
-          if (!faturaRatioMap[c.grupo_id]) faturaRatioMap[c.grupo_id] = { has: 0, total: 0 };
-          if ((Number(c.total) || 0) > 0) {
+          if ((Number(c.total) || 0) > 0 && c.tem_fatura) {
+            if (!faturaRatioMap[c.grupo_id]) faturaRatioMap[c.grupo_id] = { has: 0, total: 0 };
             faturaRatioMap[c.grupo_id].total++;
             if (c.tem_fatura === 'Sim') faturaRatioMap[c.grupo_id].has++;
             else {
@@ -10088,25 +10089,25 @@
         });
       }
 
-      // Despedidas hoje/atraso
+      // Despedidas hoje (not past — past despedidas are not tasks)
       if (h.eventos && h.eventos.length > 3) {
         h.eventos.slice(3).forEach(r => {
           const d = parseDate(r[2]);
           if (!d) return;
           const dt = new Date(d); dt.setHours(0,0,0,0);
-          if (dt.getTime() <= today.getTime()) {
-            addTask('🦌','🎉','Despedida',(r[7]||r[0]||'').trim()||'Grupo',(r[4]||'').trim(),d.toLocaleDateString('pt-PT'),dt);
+          if (dt.getTime() === today.getTime()) {
+            addTask('🦌','🎉','Despedida',(r[0]||'').trim()||'Grupo',(r[4]||'').trim(),d.toLocaleDateString('pt-PT'),dt);
           }
         });
       }
-      // Atividades hoje/atraso (eventos sheet, r[11]=dataAtividade, r[10]=nomeAtividade, r[7]=grupo)
+      // Atividades hoje (r[8]=produtoNome, r[7]=grupo, r[11]=data, r[9]=parceiro)
       if (h.eventos && h.eventos.length > 3) {
         h.eventos.slice(3).forEach(r => {
           const d = parseDate(r[11]);
           if (!d) return;
           const dt = new Date(d); dt.setHours(0,0,0,0);
-          if (dt.getTime() <= today.getTime()) {
-            addTask('🦌','🏄','Atividade',(r[7]||'').trim()||'Grupo',(r[10]||'').trim(),d.toLocaleDateString('pt-PT'),dt);
+          if (dt.getTime() === today.getTime()) {
+            addTask('🦌','🏄','Atividade',(r[8]||r[7]||'').trim()||'Grupo',(r[9]||'').trim(),d.toLocaleDateString('pt-PT'),dt);
           }
         });
       }
@@ -10875,9 +10876,9 @@ let _calSelectedDay = null;
 let _calEvents = [];
 
 const _CAL_TYPES = {
-  viagem:    { icon:'✈️',  label:'Viagem/Partida',   color:'#60a5fa', source:'all', info:true },
-  regresso:  { icon:'🏠',  label:'Regresso',          color:'#818cf8', source:'all', info:true },
-  progresso: { icon:'🌍',  label:'Em Progresso',      color:'#7dd3fc', source:'all', info:true },
+  viagem:    { icon:'✈️',  label:'Viagem/Partida',   color:'#60a5fa', source:'outlet', info:true },
+  regresso:  { icon:'🏠',  label:'Regresso',          color:'#818cf8', source:'outlet', info:true },
+  progresso: { icon:'🌍',  label:'Em Progresso',      color:'#7dd3fc', source:'outlet', info:true },
   checkin:   { icon:'🛫',  label:'Check-in Voo',      color:'#a78bfa', source:'outlet', info:true },
   info:      { icon:'📧',  label:'Info a enviar',      color:'#fbbf24', source:'all' },
   receber_o: { icon:'💰',  label:'A receber (Outlet)', color:'#34d399', source:'outlet' },
@@ -10963,19 +10964,19 @@ function calBuildEvents() {
       const d = parseDate(r[2]); if (!d) return;
       push(_calDateKey(d), d, 'despedida', r[0]||r[1]||'', r[4]||'', r[3]||'', 'hs');
     });
-    // Atividades (col7=Grupo, col8=VendaID, col10=Nome, col11=Data, col12=Parceiro, col13=Hora)
+    // Atividades (col7=Grupo, col8=ProdutoNome, col9=Parceiro, col11=Data, col12=Hora)
     ev.slice(3).forEach(r => {
       if (!(r[7]||r[8])) return;
       const d = parseDate(r[11]); if (!d) return;
-      const hora = r[13] ? ' · ' + r[13] : '';
-      push(_calDateKey(d), d, 'atividade', r[10]||'', r[7]||r[8]||'', (r[12]||'') + hora, 'hs');
+      const hora = r[12] ? r[12] : '';
+      push(_calDateKey(d), d, 'atividade', r[8]||'', r[7]||'', hora + (r[9]?' · '+r[9]:''), 'hs');
     });
-    // Transfers (col16=GrupoID, col17=VendaID, col18=Trajeto, col19=Data, col20=Hora, col21=Parceiro)
+    // Transfers (col16=Grupo, col17=ProdutoNome, col18=Parceiro, col19=Data, col20=Hora)
     ev.slice(3).forEach(r => {
       if (!(r[16]||r[17])) return;
       const d = parseDate(r[19]); if (!d) return;
       const hora = r[20] ? ' · ' + r[20] : '';
-      push(_calDateKey(d), d, 'transfer', r[18]||r[16]||r[17]||'', r[16]||r[17]||'', (r[21]||r[18]||'') + hora, 'hs');
+      push(_calDateKey(d), d, 'transfer', r[17]||r[16]||'', r[16]||'', (r[18]||'') + hora, 'hs');
     });
     // Info a enviar HS (Grupos-Info col N = r[13], Data Início = col F = r[5])
     if (window._hsRows) {
@@ -11012,31 +11013,6 @@ function calBuildEvents() {
       const d = parseDate(r[5]); if (!d) return;
       push(_calDateKey(d), d, 'pagar_h', r[1]||'', r[2]||'', fmt(parseEuro(r[4])), 'hs');
     });
-    // HSP Viagens (partidas, em progresso, regressos) from _hsRows
-    if (window._hsRows) {
-      window._hsRows.forEach(r => {
-        const nome = (r[7]||r[0]||r[1]||'').trim();
-        const cidade = (r[10]||'').trim();
-        const grupoId = (r[0]||'').trim();
-        const d1 = parseDate(r[5]);
-        const d2 = parseDate(r[6]);
-        if (d1) push(_calDateKey(d1), d1, 'viagem', nome, cidade, grupoId, 'hs');
-        if (d1 && d2) {
-          const msPerDay = 864e5;
-          const day1 = new Date(d1); day1.setHours(0,0,0,0);
-          const day2 = new Date(d2); day2.setHours(0,0,0,0);
-          const cur = new Date(day1.getTime() + msPerDay);
-          while (cur < day2) {
-            push(_calDateKey(cur), new Date(cur), 'progresso', nome + ' (em viagem)', cidade, grupoId, 'hs');
-            cur.setDate(cur.getDate() + 1);
-          }
-          if (_calDateKey(d2) !== _calDateKey(d1))
-            push(_calDateKey(d2), d2, 'regresso', nome + ' (regresso)', cidade, grupoId, 'hs');
-        } else if (d2 && _calDateKey(d2) !== (d1 ? _calDateKey(d1) : '')) {
-          push(_calDateKey(d2), d2, 'regresso', nome + ' (regresso)', cidade, grupoId, 'hs');
-        }
-      });
-    }
   }
 
   _calEvents.sort((a, b) => a.date - b.date);
