@@ -3227,7 +3227,7 @@
         const [gruposRaw, dividasRaw, comprasOdvRaw] = await Promise.all([
           sbQuery('grupos', { eq: { marca: 'odv' } }),
           sbQuery('v_divida_parceiros_odv'),
-          sbQuery('compras_odv', { select: 'grupo_id, total, pago, tem_fatura' }),
+          sbQuery('compras_odv', { select: 'grupo_id, parceiro_nome, tipo, servico, total, pago, tem_fatura' }),
         ]);
 
         // Compute custo per grupo from compras_odv (for lucro fallback)
@@ -3239,12 +3239,19 @@
 
         // Compute fatura ratio per grupo from compras_odv (replicates Sheets formula column)
         const faturaRatioMap = {};
+        const faturaDetailMap = {};
         (comprasOdvRaw || []).forEach(c => {
           if (!c.grupo_id) return;
           if (!faturaRatioMap[c.grupo_id]) faturaRatioMap[c.grupo_id] = { has: 0, total: 0 };
           if ((Number(c.total) || 0) > 0) {
             faturaRatioMap[c.grupo_id].total++;
             if (c.tem_fatura === 'Sim') faturaRatioMap[c.grupo_id].has++;
+            else {
+              if (!faturaDetailMap[c.grupo_id]) faturaDetailMap[c.grupo_id] = [];
+              const parts = [(c.parceiro_nome||'').trim(), (c.tipo||'').trim(), (c.servico||'').trim()].filter(Boolean);
+              const val = Number(c.total) || 0;
+              faturaDetailMap[c.grupo_id].push(parts.join(' - ') + (val > 0 ? ' - ' + fmt(val) : ''));
+            }
           }
         });
 
@@ -3286,10 +3293,14 @@
             g.lucro_liquido_re = lb - iva;
             g.lucro_liquido_re_pct = tot > 0 ? g.lucro_liquido_re / tot : 0;
           }
-          // Set nr_faturas_em_falta ratio from compras_odv when DB value is empty
+          // Set nr_faturas_em_falta ratio and detail from compras_odv when DB value is empty
           const fr = faturaRatioMap[g.id];
           if (fr && fr.total > 0 && !(g.nr_faturas_em_falta || '').trim()) {
             g.nr_faturas_em_falta = fr.has + '/' + fr.total;
+          }
+          const fd = faturaDetailMap[g.id];
+          if (fd && fd.length > 0 && !(g.faturas_em_falta || '').trim()) {
+            g.faturas_em_falta = fd.join('; ');
           }
         });
         // Derive pagamentos from enriched grupos (bypasses v_proximos_pagamentos view
@@ -4307,7 +4318,7 @@
               <th class="px-4 py-2.5 text-left section-label">Trimestre</th>
               <th class="px-4 py-2.5 text-right section-label">Fim Viagem</th>
               <th class="px-4 py-2.5 text-right section-label">Faturas</th>
-              <th class="px-4 py-2.5 text-left section-label">Em Falta</th>
+              <th class="px-4 py-2.5 text-left section-label">Parceiros</th>
             </tr></thead>
             <tbody>
             ${overdueInvoices.map(row => {
@@ -4336,7 +4347,7 @@
                 <td class="px-4 py-3 text-right">
                   <span class="text-xs px-2 py-0.5 rounded-full badge-orange font-semibold">${ratio}</span>
                 </td>
-                <td class="px-4 py-3 text-xs" style="color:#94a3b8;max-width:200px">${falta || '—'}</td>
+                <td class="px-4 py-3 text-xs" style="color:#94a3b8;max-width:350px">${falta || '—'}</td>
               </tr>`;
             }).join('')}
             </tbody>
@@ -9998,6 +10009,16 @@
           addTask('✈️','🧳','Viagem hoje',(row[1]||row[0]||'').trim()||'Grupo',(row[4]||'').trim(),d.toLocaleDateString('pt-PT'),dt);
         }
       });
+      // Em Progresso — viagens em curso (DataInicio < hoje <= DataFim)
+      (o.viagData||[]).forEach(row => {
+        const d1 = parseDate(row[2]); if (!d1) return;
+        const d2 = parseDate(row[3]); if (!d2) return;
+        const dt1 = new Date(d1); dt1.setHours(0,0,0,0);
+        const dt2 = new Date(d2); dt2.setHours(0,0,0,0);
+        if (dt1.getTime() < today.getTime() && dt2.getTime() >= today.getTime()) {
+          addTask('✈️','🌍','Em Progresso',(row[1]||row[0]||'').trim()||'Grupo',(row[4]||'').trim(),fmtDate(row[2])+' → '+fmtDate(row[3]),today);
+        }
+      });
       // Dívidas de cliente hoje/atraso (pagData: r[5]=data, r[4]=valor, r[1]/r[0]=nome)
       if (o.pagData) {
         o.pagData.forEach(r => {
@@ -10086,6 +10107,19 @@
           const dt = new Date(d); dt.setHours(0,0,0,0);
           if (dt.getTime() <= today.getTime()) {
             addTask('🦌','🏄','Atividade',(r[7]||'').trim()||'Grupo',(r[10]||'').trim(),d.toLocaleDateString('pt-PT'),dt);
+          }
+        });
+      }
+      // HS Em Progresso — viagens em curso (DataInício < hoje <= DataFim)
+      if (window._hsRows) {
+        window._hsRows.forEach(r => {
+          const d1 = parseDate(r[5]); if (!d1) return;
+          const d2 = parseDate(r[6]); if (!d2) return;
+          const dt1 = new Date(d1); dt1.setHours(0,0,0,0);
+          const dt2 = new Date(d2); dt2.setHours(0,0,0,0);
+          if (dt1.getTime() < today.getTime() && dt2.getTime() >= today.getTime()) {
+            const nome = (r[7]||r[0]||r[1]||'').trim()||'Grupo';
+            addTask('🦌','🌍','Em Progresso',nome,(r[10]||'').trim(),fmtDate(r[5])+' → '+fmtDate(r[6]),today);
           }
         });
       }
@@ -10841,17 +10875,17 @@ let _calSelectedDay = null;
 let _calEvents = [];
 
 const _CAL_TYPES = {
-  viagem:    { icon:'✈️',  label:'Viagem/Partida',   color:'#60a5fa', source:'outlet', info:true },
-  regresso:  { icon:'🏠',  label:'Regresso',          color:'#818cf8', source:'outlet', info:true },
-  progresso: { icon:'🌍',  label:'Em Progresso',      color:'#7dd3fc', source:'outlet', info:true },
+  viagem:    { icon:'✈️',  label:'Viagem/Partida',   color:'#60a5fa', source:'all', info:true },
+  regresso:  { icon:'🏠',  label:'Regresso',          color:'#818cf8', source:'all', info:true },
+  progresso: { icon:'🌍',  label:'Em Progresso',      color:'#7dd3fc', source:'all', info:true },
   checkin:   { icon:'🛫',  label:'Check-in Voo',      color:'#a78bfa', source:'outlet', info:true },
   info:      { icon:'📧',  label:'Info a enviar',      color:'#fbbf24', source:'all' },
   receber_o: { icon:'💰',  label:'A receber (Outlet)', color:'#34d399', source:'outlet' },
   pagar_o:   { icon:'💸',  label:'A pagar (Outlet)',   color:'#f87171', source:'outlet' },
-  despedida: { icon:'🎉',  label:'Despedida',          color:'#f472b6', source:'hs' },
-  atividade: { icon:'🎯',  label:'Atividade',          color:'#fb923c', source:'hs' },
-  transfer:  { icon:'🚌',  label:'Transfer',           color:'#38bdf8', source:'hs' },
-  merch:     { icon:'📦',  label:'Merch/Entrega',      color:'#2dd4bf', source:'hs' },
+  despedida: { icon:'🎉',  label:'Despedida',          color:'#f472b6', source:'hs', info:true },
+  atividade: { icon:'🎯',  label:'Atividade',          color:'#fb923c', source:'hs', info:true },
+  transfer:  { icon:'🚌',  label:'Transfer',           color:'#38bdf8', source:'hs', info:true },
+  merch:     { icon:'📦',  label:'Merch/Entrega',      color:'#2dd4bf', source:'hs', info:true },
   receber_h: { icon:'💚',  label:'A receber (HS)',     color:'#10b981', source:'hs' },
   pagar_h:   { icon:'🔴',  label:'A pagar (HS)',       color:'#fb7185', source:'hs' },
 };
@@ -10978,6 +11012,31 @@ function calBuildEvents() {
       const d = parseDate(r[5]); if (!d) return;
       push(_calDateKey(d), d, 'pagar_h', r[1]||'', r[2]||'', fmt(parseEuro(r[4])), 'hs');
     });
+    // HSP Viagens (partidas, em progresso, regressos) from _hsRows
+    if (window._hsRows) {
+      window._hsRows.forEach(r => {
+        const nome = (r[7]||r[0]||r[1]||'').trim();
+        const cidade = (r[10]||'').trim();
+        const grupoId = (r[0]||'').trim();
+        const d1 = parseDate(r[5]);
+        const d2 = parseDate(r[6]);
+        if (d1) push(_calDateKey(d1), d1, 'viagem', nome, cidade, grupoId, 'hs');
+        if (d1 && d2) {
+          const msPerDay = 864e5;
+          const day1 = new Date(d1); day1.setHours(0,0,0,0);
+          const day2 = new Date(d2); day2.setHours(0,0,0,0);
+          const cur = new Date(day1.getTime() + msPerDay);
+          while (cur < day2) {
+            push(_calDateKey(cur), new Date(cur), 'progresso', nome + ' (em viagem)', cidade, grupoId, 'hs');
+            cur.setDate(cur.getDate() + 1);
+          }
+          if (_calDateKey(d2) !== _calDateKey(d1))
+            push(_calDateKey(d2), d2, 'regresso', nome + ' (regresso)', cidade, grupoId, 'hs');
+        } else if (d2 && _calDateKey(d2) !== (d1 ? _calDateKey(d1) : '')) {
+          push(_calDateKey(d2), d2, 'regresso', nome + ' (regresso)', cidade, grupoId, 'hs');
+        }
+      });
+    }
   }
 
   _calEvents.sort((a, b) => a.date - b.date);
