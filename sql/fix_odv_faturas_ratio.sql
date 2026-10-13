@@ -38,4 +38,4 @@ UPDATE grupos SET nr_faturas_em_falta = '2/3' WHERE referencia = '#OT1236' AND m
 UPDATE grupos SET nr_faturas_em_falta = '2/4' WHERE referencia = '#OT1217' AND marca = 'odv';
 UPDATE grupos SET nr_faturas_em_falta = '0/1' WHERE referencia = '#OT1252' AND marca = 'odv';
 UPDATE grupos SET nr_faturas_em_falta = '1/5' WHERE referencia = '#OT1247' AND marca = 'odv';
-UPDATE grupos SET nr_faturas_em_falta = '1/3' WHERE referencia = '#OT1253' AND marca = 'odv';
+-- #OT1253 does not exist in grupos table (skipped)
