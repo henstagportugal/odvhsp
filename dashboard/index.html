@@ -3192,11 +3192,25 @@
       return row;
     }
 
-    // Stubs for legacy calls — unused now but prevent reference errors
-    async function fetchRangeFrom() { return []; }
-    async function fetchRange() { return []; }
-    async function getSheetNamesFrom() { return []; }
-    async function getSheetNames() { return []; }
+    // ── Google Sheets API (for data not yet migrated to Supabase) ──
+    const _GS_API_KEY = 'AIzaSyBm8WCA2OYJCiUc-v81tt_X6WXPK_Q-D5g';
+    const _GS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
+    const _GS_ODV_ID = '1MnGtvOiwEqZJlEZ0jsS3EtCrDYWCZ5zQa0LoXC5Zu7g';
+    const _GS_HS_COMPRAS_ID = '1gL6yEs7J1mcYwkM86fm0IAY9yV8110uJDVXZW4olZNU';
+    async function fetchRangeFrom(sheetId, range) {
+      const url = `${_GS_BASE}/${sheetId}/values/${encodeURIComponent(range)}?key=${_GS_API_KEY}`;
+      const r = await fetch(url);
+      if (!r.ok) { const e = await r.json().catch(()=>{}); throw new Error(e?.error?.message || `Sheets ${r.status}`); }
+      return (await r.json()).values || [];
+    }
+    async function fetchRange(range) { return fetchRangeFrom(_GS_ODV_ID, range); }
+    async function getSheetNamesFrom(sheetId) {
+      const url = `${_GS_BASE}/${sheetId}?fields=sheets.properties.title&key=${_GS_API_KEY}`;
+      const r = await fetch(url);
+      if (!r.ok) return [];
+      return ((await r.json()).sheets || []).map(s => s.properties.title);
+    }
+    async function getSheetNames() { return getSheetNamesFrom(_GS_ODV_ID); }
 
     // HSP dívidas: query compras tables directly (avoids v_divida_parceiros_hsp
     // view which requires parceiro_id JOIN and drops rows where parceiro_id is NULL).
@@ -3238,10 +3252,11 @@
       show('loading-msg');
       try {
         // ── Fetch from Supabase ──
-        const [gruposRaw, dividasRaw, comprasOdvRaw] = await Promise.all([
+        const [gruposRaw, dividasRaw, comprasOdvRaw, _sheetsVendas] = await Promise.all([
           sbQuery('grupos', { eq: { marca: 'odv' } }),
           sbQuery('v_divida_parceiros_odv'),
           sbQuery('compras_odv', { select: 'grupo_id, parceiro_nome, tipo, servico, total, pago, tem_fatura' }),
+          fetchRange('Vendas!A:AR').catch(()=>[]),
         ]);
 
         // Compute custo per grupo from compras_odv (for lucro fallback)
@@ -3315,6 +3330,24 @@
           const fd = faturaDetailMap[g.id];
           if (fd && fd.length > 0 && !(g.faturas_em_falta || '').trim()) {
             g.faturas_em_falta = fd.join('; ');
+          }
+        });
+        // Fallback: enrich with Google Sheets Vendas FaturasRatio (col 41) and FaturasEmFalta (col 42)
+        const _sheetsFatMap = {};
+        (_sheetsVendas || []).slice(1).forEach(r => {
+          const ref = (r[0] || '').trim();
+          if (!ref) return;
+          const ratio = (r[41] || '').trim();
+          const detail = (r[42] || '').trim();
+          if (ratio || detail) _sheetsFatMap[ref] = { ratio, detail };
+        });
+        gruposRaw.forEach(g => {
+          if (!(g.nr_faturas_em_falta || '').trim()) {
+            const sf = _sheetsFatMap[(g.referencia || '').trim()];
+            if (sf) {
+              if (sf.ratio) g.nr_faturas_em_falta = sf.ratio;
+              if (sf.detail) g.faturas_em_falta = sf.detail;
+            }
           }
         });
         // Derive pagamentos from enriched grupos (bypasses v_proximos_pagamentos view
@@ -4471,7 +4504,7 @@
           sbQuery('v_proximos_eventos', { eq: { marca: 'hsp' } }),
           sbQuery('vendas_merch', { select: '*, grupos!inner(referencia, nome_cliente, marca)' }),
           sbQuery('v_proximos_pagamentos', { eq: { marca: 'hsp' } }),
-          _queryDividasHsp(),
+          fetchRangeFrom(_GS_HS_COMPRAS_ID, 'Divida_Parceiros!A:G').catch(()=>[]),
           sbQuery('v_faturas_em_falta', { eq: { marca: 'hsp' } }),
         ]);
 
@@ -4567,12 +4600,8 @@
             fmtVal(p.fatura_nr), '', '', ''
           ])];
 
-        // ── Divida_Parceiros → 7-col array ──
-        const dividas = [['ID','Parceiro','Grupo','Pago','Em Dívida','Pagar Até',''],
-          ...dividasRaw.map(d => [
-            String(d.parceiro_id||''), fmtVal(d.parceiro), fmtVal(d.referencia),
-            fmtNum(d.pago), fmtNum(d.em_falta), fmtVal(d.pagar_ate), ''
-          ])];
+        // ── Divida_Parceiros → from Google Sheets (already array-of-arrays with header) ──
+        const dividas = dividasRaw.length > 0 ? dividasRaw : [['ID','Parceiro','Grupo','Pago','Em Dívida','Pagar Até','']];
 
         // ── Compras Faturas → 6-col array ──
         const comprasFaturas = [['Referência','Parceiro','Produto','SKU','Tipo','Marca'],
