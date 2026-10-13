@@ -3257,11 +3257,12 @@
         (comprasOdvRaw || []).forEach(c => {
           if (!c.grupo_id) return;
           if ((Number(c.total) || 0) <= 0) return;
-          if (!c.tem_fatura) return;
-          if (!faturaRatioMap[c.grupo_id]) faturaRatioMap[c.grupo_id] = { has: 0, total: 0 };
-          faturaRatioMap[c.grupo_id].total++;
-          if (c.tem_fatura === 'Sim') faturaRatioMap[c.grupo_id].has++;
-          else if (c.tem_fatura && c.tem_fatura !== 'Sim') {
+          if (c.tem_fatura) {
+            if (!faturaRatioMap[c.grupo_id]) faturaRatioMap[c.grupo_id] = { has: 0, total: 0 };
+            faturaRatioMap[c.grupo_id].total++;
+            if (c.tem_fatura === 'Sim') faturaRatioMap[c.grupo_id].has++;
+          }
+          if (c.tem_fatura !== 'Sim') {
             if (!faturaDetailMap[c.grupo_id]) faturaDetailMap[c.grupo_id] = [];
             const parts = [(c.parceiro_nome||'').trim(), (c.tipo||'').trim(), (c.servico||'').trim()].filter(Boolean);
             const val = Number(c.total) || 0;
@@ -4354,6 +4355,15 @@
         const m = ratio.match(/^(\d+)\/(\d+)$/);
         return m && parseInt(m[1]) >= parseInt(m[2]) && parseInt(m[2]) > 0;
       }).map(row => ((row[9]||'').trim() || (row[0]||'').trim())));
+      const _pendingKeys = new Set(rows.filter(row => {
+        const volta = parseDate(row[14]);
+        if (volta && volta < today) return false;
+        const ratio = (row[41]||'').trim();
+        if (!ratio) return false;
+        const m = ratio.match(/^(\d+)\/(\d+)$/);
+        if (!m) return false;
+        return parseInt(m[1]) < parseInt(m[2]);
+      }).map(row => ((row[9]||'').trim() || (row[0]||'').trim())));
 
       // ── Grupos por trimestre detail ──
       if (sortedQ.length) {
@@ -4372,8 +4382,9 @@
               ${qd.grupos.map(g => {
                 const isOk      = _okKeys.has(g.key);
                 const isOverdue = _overdueKeys.has(g.key);
-                const border    = isOk ? 'rgba(52,211,153,.35)' : isOverdue ? 'rgba(239,68,68,.35)' : '#1e2535';
-                const fatColor  = isOk ? '#34d399' : isOverdue ? '#f87171' : '#818cf8';
+                const isPending = !isOk && !isOverdue && _pendingKeys.has(g.key);
+                const border    = isOk ? 'rgba(52,211,153,.35)' : isOverdue ? 'rgba(239,68,68,.35)' : isPending ? 'rgba(96,165,250,.35)' : '#1e2535';
+                const fatColor  = isOk ? '#34d399' : isOverdue ? '#f87171' : isPending ? '#60a5fa' : '#818cf8';
                 return `<div class="flex items-center gap-2 text-xs px-2 py-1 rounded-lg" style="background:#13161f;border:1px solid ${border}">
                   ${g.grupoId ? `<span style="color:#475569;font-weight:600">${g.grupoId}</span><span style="color:#1e2535">·</span>` : ''}
                   <span style="color:${fatColor};font-weight:600">${g.fatNr}</span>
