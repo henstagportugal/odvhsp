@@ -669,6 +669,20 @@
             <h3 class="font-semibold text-sm" style="color:#94a3b8">👥 Grupos / Vendas <span class="text-xs font-normal" style="color:#475569">(clica para ver todos os detalhes)</span></h3>
             <input id="grupos-search" oninput="gruposRender(this.value)" placeholder="🔍 Procurar (cliente, destino, fornecedor…)" style="background:#0f1117;border:1px solid #1e2535;border-radius:8px;padding:8px 12px;color:#e2e8f0;font-size:0.82rem;font-family:inherit;outline:none;min-width:240px;flex:1;max-width:360px">
           </div>
+          <div id="grupos-filters" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:center">
+            <button id="gf-pagar" onclick="gruposToggleFilter('pagar')" style="background:#13161f;border:1px solid #1e2535;color:#94a3b8;padding:6px 12px;border-radius:8px;font-size:0.76rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s">💳 Por pagar</button>
+            <button id="gf-info" onclick="gruposToggleFilter('info')" style="background:#13161f;border:1px solid #1e2535;color:#94a3b8;padding:6px 12px;border-radius:8px;font-size:0.76rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s">📋 Info em falta</button>
+            <select id="gf-destino" onchange="_gruposFilters.destino=this.value;gruposApplyFilters()" style="background:#0f1117;border:1px solid #1e2535;border-radius:8px;padding:6px 10px;color:#94a3b8;font-size:0.76rem;font-family:inherit;outline:none;min-width:140px;cursor:pointer">
+              <option value="">Todos os destinos</option>
+            </select>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span style="color:#64748b;font-size:0.74rem">De:</span>
+              <input id="gf-date-from" type="date" onchange="_gruposFilters.dateFrom=this.value;gruposApplyFilters()" style="background:#0f1117;border:1px solid #1e2535;border-radius:8px;padding:5px 8px;color:#e2e8f0;font-size:0.76rem;font-family:inherit;outline:none;color-scheme:dark">
+              <span style="color:#64748b;font-size:0.74rem">Até:</span>
+              <input id="gf-date-to" type="date" onchange="_gruposFilters.dateTo=this.value;gruposApplyFilters()" style="background:#0f1117;border:1px solid #1e2535;border-radius:8px;padding:5px 8px;color:#e2e8f0;font-size:0.76rem;font-family:inherit;outline:none;color-scheme:dark">
+            </div>
+            <button id="gf-clear" onclick="gruposClearFilters()" style="background:#13161f;border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:6px 12px;border-radius:8px;font-size:0.76rem;font-weight:600;cursor:pointer;font-family:inherit;display:none">✕ Limpar filtros</button>
+          </div>
           <button onclick="var e=document.getElementById('grupos-cols');e.style.display=e.style.display==='none'?'block':'none'" style="background:#13161f;border:1px solid #1e2535;color:#94a3b8;padding:6px 12px;border-radius:8px;font-size:0.76rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:10px">⚙️ Configurar colunas</button>
           <div id="grupos-cols" class="card p-4" style="display:none;margin-bottom:12px"></div>
           <p id="grupos-count" class="text-xs mb-3" style="color:#475569"></p>
@@ -3238,21 +3252,19 @@
         });
 
         // Compute fatura ratio per grupo from compras_odv (replicates Sheets formula column)
-        // Only count purchases where tem_fatura is explicitly set (not NULL)
         const faturaRatioMap = {};
         const faturaDetailMap = {};
         (comprasOdvRaw || []).forEach(c => {
           if (!c.grupo_id) return;
-          if ((Number(c.total) || 0) > 0 && c.tem_fatura) {
-            if (!faturaRatioMap[c.grupo_id]) faturaRatioMap[c.grupo_id] = { has: 0, total: 0 };
-            faturaRatioMap[c.grupo_id].total++;
-            if (c.tem_fatura === 'Sim') faturaRatioMap[c.grupo_id].has++;
-            else {
-              if (!faturaDetailMap[c.grupo_id]) faturaDetailMap[c.grupo_id] = [];
-              const parts = [(c.parceiro_nome||'').trim(), (c.tipo||'').trim(), (c.servico||'').trim()].filter(Boolean);
-              const val = Number(c.total) || 0;
-              faturaDetailMap[c.grupo_id].push(parts.join(' - ') + (val > 0 ? ' - ' + fmt(val) : ''));
-            }
+          if ((Number(c.total) || 0) <= 0) return;
+          if (!faturaRatioMap[c.grupo_id]) faturaRatioMap[c.grupo_id] = { has: 0, total: 0 };
+          faturaRatioMap[c.grupo_id].total++;
+          if (c.tem_fatura === 'Sim') faturaRatioMap[c.grupo_id].has++;
+          else if (c.tem_fatura && c.tem_fatura !== 'Sim') {
+            if (!faturaDetailMap[c.grupo_id]) faturaDetailMap[c.grupo_id] = [];
+            const parts = [(c.parceiro_nome||'').trim(), (c.tipo||'').trim(), (c.servico||'').trim()].filter(Boolean);
+            const val = Number(c.total) || 0;
+            faturaDetailMap[c.grupo_id].push(parts.join(' - ') + (val > 0 ? ' - ' + fmt(val) : ''));
           }
         });
 
@@ -3418,7 +3430,7 @@
         // ── TABELA PAGAMENTOS ──
         const sortedPag = pagData
           .map(r=>({nome:r[1]||'',grupoId:r[0]||'',porPagar:parseEuro(r[4]),data:r[5]||''}))
-          .sort((a,b)=>new Date(b.data.replace(/\//g,'-'))-new Date(a.data.replace(/\//g,'-')))
+          .sort((a,b)=>new Date(a.data.replace(/\//g,'-'))-new Date(b.data.replace(/\//g,'-')))
           .slice(0,10);
         document.getElementById('tbl-pagamentos').innerHTML = sortedPag.map(p => {
           const days = daysFromNow(p.data);
@@ -3437,7 +3449,7 @@
         }).join('');
 
         // ── TABELA DÍVIDAS ──
-        dividasData.sort((a,b) => (parseDate(b[3])||0) - (parseDate(a[3])||0));
+        dividasData.sort((a,b) => (parseDate(a[3])||0) - (parseDate(b[3])||0));
         document.getElementById('tbl-dividas').innerHTML = dividasData.map(d => {
           const days = daysFromNow(d[3]);
           const past = days !== null && days < 0;
@@ -3714,6 +3726,7 @@
       items.forEach(function(it,i){ it.idx=i; });
       _grupos={ header:header, cols:cols, items:items, open:{} };
       gruposColsUI();
+      gruposPopulateDestinos();
       gruposRender((document.getElementById('grupos-search')||{}).value||'');
     }
     function gruposToggle(i){ if(!_grupos) return; _grupos.open[i]=!_grupos.open[i]; gruposRender((document.getElementById('grupos-search')||{}).value||''); }
@@ -3784,10 +3797,75 @@
         +'<div style="text-align:right;flex-shrink:0"><div style="color:#818cf8;font-weight:700;font-size:0.9rem">'+totalTxt+'</div></div>'
         +'</div>'+badgesHtml+'</button>'+detail+'</div>';
     }
+    var _gruposFilters = { pagar: false, info: false, destino: '', dateFrom: '', dateTo: '' };
+    function gruposToggleFilter(type) {
+      _gruposFilters[type] = !_gruposFilters[type];
+      var btn = document.getElementById('gf-' + type);
+      if (btn) {
+        btn.style.background = _gruposFilters[type] ? '#1e3a5f' : '#13161f';
+        btn.style.borderColor = _gruposFilters[type] ? '#3b82f6' : '#1e2535';
+        btn.style.color = _gruposFilters[type] ? '#60a5fa' : '#94a3b8';
+      }
+      gruposApplyFilters();
+    }
+    function gruposApplyFilters() {
+      gruposRender((document.getElementById('grupos-search') || {}).value || '');
+      var any = _gruposFilters.pagar || _gruposFilters.info || _gruposFilters.destino || _gruposFilters.dateFrom || _gruposFilters.dateTo;
+      var cb = document.getElementById('gf-clear');
+      if (cb) cb.style.display = any ? 'inline-block' : 'none';
+    }
+    function gruposClearFilters() {
+      _gruposFilters = { pagar: false, info: false, destino: '', dateFrom: '', dateTo: '' };
+      ['pagar','info'].forEach(function(k) {
+        var b = document.getElementById('gf-' + k);
+        if (b) { b.style.background = '#13161f'; b.style.borderColor = '#1e2535'; b.style.color = '#94a3b8'; }
+      });
+      var sel = document.getElementById('gf-destino'); if (sel) sel.value = '';
+      var df = document.getElementById('gf-date-from'); if (df) df.value = '';
+      var dt = document.getElementById('gf-date-to'); if (dt) dt.value = '';
+      gruposApplyFilters();
+    }
+    function gruposPopulateDestinos() {
+      var sel = document.getElementById('gf-destino'); if (!sel || !_grupos) return;
+      var ci = _grupos.cols.dest; if (ci < 0) return;
+      var set = {};
+      _grupos.items.forEach(function(it) {
+        var v = ('' + (it.r[ci] || '')).trim();
+        if (v) set[v] = (set[v] || 0) + 1;
+      });
+      var opts = Object.keys(set).sort();
+      sel.innerHTML = '<option value="">Todos os destinos</option>' + opts.map(function(d) {
+        return '<option value="' + gEsc(d) + '">' + gEsc(d) + ' (' + set[d] + ')</option>';
+      }).join('');
+    }
     function gruposRender(q){
       var el=document.getElementById('grupos-list'); if(!el||!_grupos) return;
       q=(q||'').trim().toLowerCase();
-      var list=_grupos.items.filter(function(it){ if(!q) return true; return it.r.some(function(v){ return (''+(v==null?'':v)).toLowerCase().indexOf(q)>-1; }); });
+      var cols=_grupos.cols;
+      var list=_grupos.items.filter(function(it){
+        if(q && !it.r.some(function(v){ return (''+(v==null?'':v)).toLowerCase().indexOf(q)>-1; })) return false;
+        if(_gruposFilters.pagar){
+          var ep=cols.pag>-1?(''+(it.r[cols.pag]||'')).trim().toLowerCase():'';
+          if(ep==='pago'||ep==='cancelado') return false;
+        }
+        if(_gruposFilters.info){
+          var iv=cols.info>-1?(''+(it.r[cols.info]||'')).trim().toLowerCase():'';
+          if(/enviad|entregu|feito|✓|✔|^sim$/.test(iv)) return false;
+        }
+        if(_gruposFilters.destino){
+          var dv=cols.dest>-1?(''+(it.r[cols.dest]||'')).trim():'';
+          if(dv!==_gruposFilters.destino) return false;
+        }
+        if(_gruposFilters.dateFrom||_gruposFilters.dateTo){
+          var fd=_gruposFilters.dateFrom?new Date(_gruposFilters.dateFrom+'T00:00:00'):null;
+          var td=_gruposFilters.dateTo?new Date(_gruposFilters.dateTo+'T23:59:59'):null;
+          var ts=it.d, te=it.v||it.d;
+          if(!ts) return false;
+          if(fd && te && te<fd) return false;
+          if(td && ts>td) return false;
+        }
+        return true;
+      });
       var cnt=document.getElementById('grupos-count'); if(cnt) cnt.textContent=list.length+' '+(list.length===1?'grupo':'grupos');
       if(!list.length){ el.innerHTML='<p class="text-xs" style="color:#334155">Sem resultados.</p>'; return; }
       var today=new Date(); today.setHours(0,0,0,0);
