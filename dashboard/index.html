@@ -3257,6 +3257,7 @@
         (comprasOdvRaw || []).forEach(c => {
           if (!c.grupo_id) return;
           if ((Number(c.total) || 0) <= 0) return;
+          if (!c.tem_fatura) return;
           if (!faturaRatioMap[c.grupo_id]) faturaRatioMap[c.grupo_id] = { has: 0, total: 0 };
           faturaRatioMap[c.grupo_id].total++;
           if (c.tem_fatura === 'Sim') faturaRatioMap[c.grupo_id].has++;
@@ -3331,7 +3332,7 @@
         const vendas = [ODV_VENDAS_HEADER, ...gruposRaw.map(odvGrupoToRow)];
 
         const dividas = [['Parceiro','Referência','Em Dívida','Pagar Até'],
-          ...dividasRaw.map(d => [fmtVal(d.parceiro), fmtVal(d.referencia), fmtNum(d.em_falta), fmtVal(d.pagar_ate)])];
+          ...dividasRaw.filter(d => d.marca === 'odv').map(d => [fmtVal(d.parceiro), fmtVal(d.referencia), fmtNum(d.em_falta), fmtVal(d.pagar_ate)])];
 
         const pagamentos = [['Referência','Nome','','','Em Falta','Próximo Pagamento'],
           ...pagRaw.map(p => [fmtVal(p.referencia), fmtVal(p.nome_cliente), '', '', fmtNum(p.em_falta), fmtVal(p.proximo_pagamento)])];
@@ -3449,7 +3450,13 @@
         }).join('');
 
         // ── TABELA DÍVIDAS ──
-        dividasData.sort((a,b) => (parseDate(a[3])||0) - (parseDate(b[3])||0));
+        dividasData.sort((a,b) => {
+          var da = parseDate(a[3]), db = parseDate(b[3]);
+          if (!da && !db) return 0;
+          if (!da) return 1;
+          if (!db) return -1;
+          return da - db;
+        });
         document.getElementById('tbl-dividas').innerHTML = dividasData.map(d => {
           const days = daysFromNow(d[3]);
           const past = days !== null && days < 0;
@@ -4397,7 +4404,7 @@
               <th class="px-4 py-2.5 text-left section-label">Trimestre</th>
               <th class="px-4 py-2.5 text-right section-label">Fim Viagem</th>
               <th class="px-4 py-2.5 text-right section-label">Faturas</th>
-              <th class="px-4 py-2.5 text-left section-label">Parceiros</th>
+              <th class="px-4 py-2.5 text-left section-label">Em Falta</th>
             </tr></thead>
             <tbody>
             ${overdueInvoices.map(row => {
@@ -4738,11 +4745,11 @@
               <tbody>${atRows.length ? atRows.map(r=>`
                 <tr class="tbl-row" style="border-top:1px solid #1e2535">
                   <td class="px-4 py-2.5 text-xs font-mono val-purple">${r[7]||r[8]||''}</td>
-                  <td class="px-4 py-2.5 text-xs" style="color:#e2e8f0">${r[10]||''}</td>
-                  <td class="px-4 py-2.5 text-xs" style="color:#64748b">${r[13]||''}</td>
+                  <td class="px-4 py-2.5 text-xs" style="color:#e2e8f0">${r[8]||''}</td>
+                  <td class="px-4 py-2.5 text-xs" style="color:#64748b">${r[9]||''}</td>
                   <td class="px-4 py-2.5 text-xs">${dayLabel(r[11])} ${fmtDate(r[11])||''}</td>
                   <td class="px-4 py-2.5 text-xs" style="color:#94a3b8">${r[12]||''}</td>
-                  <td class="px-4 py-2.5 text-xs" style="color:#64748b">${r[14]||''}</td>
+                  <td class="px-4 py-2.5 text-xs" style="color:#64748b">${r[13]||''}</td>
                 </tr>`).join('') : `<tr><td colspan="6" class="px-4 py-4 text-xs text-center" style="color:#334155">Sem atividades nos próximos 15 dias</td></tr>`}
               </tbody>
             </table>
