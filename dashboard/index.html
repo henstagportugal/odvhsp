@@ -3216,6 +3216,7 @@
       ];
       return all
         .filter(r => r.grupos?.marca === 'hsp')
+        .filter(r => !(r.parceiro_nome || '').startsWith('HenStagPortugal'))
         .map(r => {
           const emFalta = (Number(r.em_falta) || 0) || ((Number(r.total) || 0) - (Number(r.pago) || 0));
           if (emFalta === 0) return null;
@@ -3262,12 +3263,18 @@
             faturaRatioMap[c.grupo_id].total++;
             if (c.tem_fatura === 'Sim') faturaRatioMap[c.grupo_id].has++;
           }
-          if (c.tem_fatura !== 'Sim') {
+          if (c.tem_fatura && c.tem_fatura !== 'Sim') {
             if (!faturaDetailMap[c.grupo_id]) faturaDetailMap[c.grupo_id] = [];
             const parts = [(c.parceiro_nome||'').trim(), (c.tipo||'').trim(), (c.servico||'').trim()].filter(Boolean);
             const val = Number(c.total) || 0;
             faturaDetailMap[c.grupo_id].push(parts.join(' - ') + (val > 0 ? ' - ' + fmt(val) : ''));
           }
+        });
+
+        const comprasCountMap = {};
+        (comprasOdvRaw || []).forEach(c => {
+          if (!c.grupo_id || (Number(c.total) || 0) <= 0) return;
+          comprasCountMap[c.grupo_id] = (comprasCountMap[c.grupo_id] || 0) + 1;
         });
 
         // Enrich grupos: compute em_falta, lucro, IVA, trimestre when DB values are 0 (formula-computed in Sheets)
@@ -3316,6 +3323,10 @@
           const fd = faturaDetailMap[g.id];
           if (fd && fd.length > 0 && !(g.faturas_em_falta || '').trim()) {
             g.faturas_em_falta = fd.join('; ');
+          }
+          if (!(g.nr_faturas_em_falta || '').trim() && comprasCountMap[g.id]) {
+            const n = comprasCountMap[g.id];
+            g.nr_faturas_em_falta = n + '/' + n;
           }
         });
         // Derive pagamentos from enriched grupos (bypasses v_proximos_pagamentos view
