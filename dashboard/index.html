@@ -5054,7 +5054,7 @@
       if (dim === 'canais') {
         const gid = (row[0]||'').trim();
         const pref = gid ? (gid.replace(/^#/,'')[0]||'').toUpperCase() : '';
-        const canal = gid ? (canalMap[pref]||'Outros') : 'Site (direto)';
+        const canal = gid ? (canalMap[pref] || (/\d/.test(pref) ? 'Site (direto)' : 'Outros')) : 'Site (direto)';
         return canal === key;
       }
       if (dim === 'months') {
@@ -5236,7 +5236,7 @@
         // Por canal
         const gid = (row[0]||'').trim();
         const prefixo = gid ? (gid.replace(/^#/,'')[0]||'').toUpperCase() : '';
-        const canal = gid ? (canalMap[prefixo] || 'Outros') : 'Site (direto)';
+        const canal = gid ? (canalMap[prefixo] || (/\d/.test(prefixo) ? 'Site (direto)' : 'Outros')) : 'Site (direto)';
         addTo(canais, canal, { label: canal }, fat, lb, ll, row);
       });
 
@@ -7523,7 +7523,7 @@
         if (!d || d.getFullYear()!==ano) return;
         const gid = (row[0]||'').trim();
         const pref = gid ? (gid.replace(/^#/,'')[0]||'').toUpperCase() : '';
-        const canal = gid ? (canalMap[pref] || 'Outros') : 'Site (direto)';
+        const canal = gid ? (canalMap[pref] || (/\d/.test(pref) ? 'Site (direto)' : 'Outros')) : 'Site (direto)';
         const _key=(row[0]||row[1]||'').trim(), _isSite=!(row[0]||'').trim();
         const _hasFV = _gpLD.some(p => {
           const pgid=(p[0]||'').trim(), pvid=(p[1]||'').trim();
