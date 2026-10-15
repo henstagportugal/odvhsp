@@ -3263,12 +3263,10 @@
             faturaRatioMap[c.grupo_id].total++;
             if (c.tem_fatura === 'Sim') faturaRatioMap[c.grupo_id].has++;
           }
-          if (c.tem_fatura && c.tem_fatura !== 'Sim') {
-            if (!faturaDetailMap[c.grupo_id]) faturaDetailMap[c.grupo_id] = [];
-            const parts = [(c.parceiro_nome||'').trim(), (c.tipo||'').trim(), (c.servico||'').trim()].filter(Boolean);
-            const val = Number(c.total) || 0;
-            faturaDetailMap[c.grupo_id].push(parts.join(' - ') + (val > 0 ? ' - ' + fmt(val) : ''));
-          }
+          if (!faturaDetailMap[c.grupo_id]) faturaDetailMap[c.grupo_id] = [];
+          const parts = [(c.parceiro_nome||'').trim(), (c.tipo||'').trim(), (c.servico||'').trim()].filter(Boolean);
+          const val = Number(c.total) || 0;
+          faturaDetailMap[c.grupo_id].push(parts.join(' - ') + (val > 0 ? ' - ' + fmt(val) : ''));
         });
 
         const comprasCountMap = {};
@@ -3321,7 +3319,9 @@
             g.nr_faturas_em_falta = fr.has + '/' + fr.total;
           }
           const fd = faturaDetailMap[g.id];
-          if (fd && fd.length > 0 && !(g.faturas_em_falta || '').trim()) {
+          const _rat = (g.nr_faturas_em_falta || '').trim();
+          const _rm = _rat.match(/^(\d+)\/(\d+)$/);
+          if (fd && fd.length > 0 && _rm && parseInt(_rm[1]) < parseInt(_rm[2]) && !(g.faturas_em_falta || '').trim()) {
             g.faturas_em_falta = fd.join('; ');
           }
           if (!(g.nr_faturas_em_falta || '').trim() && comprasCountMap[g.id]) {
