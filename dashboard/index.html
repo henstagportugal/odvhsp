@@ -3263,10 +3263,12 @@
             faturaRatioMap[c.grupo_id].total++;
             if (c.tem_fatura === 'Sim') faturaRatioMap[c.grupo_id].has++;
           }
-          if (!faturaDetailMap[c.grupo_id]) faturaDetailMap[c.grupo_id] = [];
-          const parts = [(c.parceiro_nome||'').trim(), (c.tipo||'').trim(), (c.servico||'').trim()].filter(Boolean);
-          const val = Number(c.total) || 0;
-          faturaDetailMap[c.grupo_id].push(parts.join(' - ') + (val > 0 ? ' - ' + fmt(val) : ''));
+          if (c.tem_fatura !== 'Sim') {
+            if (!faturaDetailMap[c.grupo_id]) faturaDetailMap[c.grupo_id] = [];
+            const parts = [(c.parceiro_nome||'').trim(), (c.tipo||'').trim(), (c.servico||'').trim()].filter(Boolean);
+            const val = Number(c.total) || 0;
+            faturaDetailMap[c.grupo_id].push(parts.join(' - ') + (val > 0 ? ' - ' + fmt(val) : ''));
+          }
         });
 
         const comprasCountMap = {};
