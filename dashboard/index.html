@@ -5945,8 +5945,12 @@
       ).join('');
     }
 
-    function gerarReportRE() {
+    async function gerarReportRE() {
       if (!document.getElementById('re-report-output')) return;
+      if (!_comprasDataLoaded) {
+        document.getElementById('re-report-output').innerHTML='<p style="color:#94a3b8;font-size:13px;padding:12px 0">⏳ A carregar valores de compras…</p>';
+        await _loadComprasData();
+      }
       const rows        = _hsRows;
       const gruposPag   = _hsGruposPag;
       const comprasFat  = (window._hsState && window._hsState.comprasFaturas) || [];
@@ -6111,8 +6115,8 @@
       document.getElementById('re-export-btn').style.display = '';
     }
 
-    function exportReportRE() {
-      // Build plain-text version for copying
+    async function exportReportRE() {
+      if (!_comprasDataLoaded) await _loadComprasData();
       const rows        = _hsRows;
       const gruposPag   = _hsGruposPag;
       const comprasFat  = (window._hsState && window._hsState.comprasFaturas) || [];
@@ -7005,7 +7009,8 @@
     }
 
     let _comprasDataLoaded = false;
-    let _hsComprasMap = {}; // key "grupoId|produto" → formatted total string
+    let _hsComprasMap = {};
+    let _hsComprasAll = [];
     let _odvComprasRows = [];
 
     async function _loadComprasData() {
@@ -7025,10 +7030,33 @@
           if (!_hsComprasMap[k]) _hsComprasMap[k] = [];
           _hsComprasMap[k].push(total);
         };
-        (atv||[]).forEach(r => addToMap(r.grupos?.referencia, r.produto_nome, Number(r.total)||0));
-        (aloj||[]).forEach(r => { const p=Number(r.preco_compra)||0, q=Number(r.quantidade)||1; addToMap(r.grupos?.referencia, r.produto_nome, p*q); });
-        (trans||[]).forEach(r => { const p=Number(r.preco_compra)||0, q=Number(r.quantidade)||1; addToMap(r.grupos?.referencia, r.produto_nome, p*q); });
-        (merch||[]).forEach(r => addToMap(r.grupos?.referencia, r.produto_nome, Number(r.total_c_iva)||0));
+        const addToAll = (ref, parceiro, produto, recebida) => {
+          const row = new Array(6).fill('');
+          row[0] = ref || '';
+          row[1] = ref || '';
+          row[3] = parceiro || '';
+          row[4] = produto || '';
+          row[5] = recebida ? 'Sim' : 'Não';
+          _hsComprasAll.push(row);
+        };
+        (atv||[]).forEach(r => {
+          addToMap(r.grupos?.referencia, r.produto_nome, Number(r.total)||0);
+          addToAll(r.grupos?.referencia, r.parceiro_nome, r.produto_nome, r.tem_fatura);
+        });
+        (aloj||[]).forEach(r => {
+          const p=Number(r.preco_compra)||0, q=Number(r.quantidade)||1;
+          addToMap(r.grupos?.referencia, r.produto_nome, p*q);
+          addToAll(r.grupos?.referencia, r.parceiro_nome, r.produto_nome, r.tem_fatura);
+        });
+        (trans||[]).forEach(r => {
+          const p=Number(r.preco_compra)||0, q=Number(r.quantidade)||1;
+          addToMap(r.grupos?.referencia, r.produto_nome, p*q);
+          addToAll(r.grupos?.referencia, r.parceiro_nome, r.produto_nome, r.tem_fatura);
+        });
+        (merch||[]).forEach(r => {
+          addToMap(r.grupos?.referencia, r.produto_nome, Number(r.total_c_iva)||0);
+          addToAll(r.grupos?.referencia, r.parceiro_nome, r.produto_nome, r.tem_fatura);
+        });
         _odvComprasRows = (odvC||[]).filter(r => r.grupos?.referencia).map(r => {
           const row = new Array(10).fill('');
           row[0] = r.grupos.referencia || '';
@@ -7038,7 +7066,13 @@
           row[9] = r.total != null ? String(r.total).replace('.',',') : '';
           return row;
         });
-        console.log('[compras] odvComprasRows:', _odvComprasRows.length);
+        if (window._hsState) {
+          window._hsState.comprasFaturas = [
+            ['Referência','','','Parceiro','Produto','Recebida'],
+            ..._hsComprasAll
+          ];
+        }
+        console.log('[compras] hsComprasAll:', _hsComprasAll.length, 'odvComprasRows:', _odvComprasRows.length);
       } catch(e) { console.warn('_loadComprasData error', e); }
       _comprasDataLoaded = true;
     }
@@ -7268,9 +7302,10 @@
       document.getElementById('gre-export-btn').style.display = '';
     }
 
-    function exportReportGeralCSV() {
+    async function exportReportGeralCSV() {
       const o=window._outletState, h=window._hsState;
       if (!o||!h) return;
+      if (!_comprasDataLoaded) await _loadComprasData();
       const fi = window._hsGpFatIdx ?? 8;
       const gruposPag = _hsGruposPag || [];
       const comprasFat = (h.comprasFaturas) || [];
