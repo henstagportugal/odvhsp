@@ -7030,32 +7030,35 @@
           if (!_hsComprasMap[k]) _hsComprasMap[k] = [];
           _hsComprasMap[k].push(total);
         };
-        const addToAll = (ref, parceiro, produto, recebida) => {
-          const row = new Array(6).fill('');
+        const addToAll = (ref, parceiro, produto, recebida, total) => {
+          const row = new Array(7).fill('');
           row[0] = ref || '';
           row[1] = ref || '';
           row[3] = parceiro || '';
           row[4] = produto || '';
           row[5] = recebida ? 'Sim' : 'Não';
+          row[6] = total || 0;
           _hsComprasAll.push(row);
         };
         (atv||[]).forEach(r => {
-          addToMap(r.grupos?.referencia, r.produto_nome, Number(r.total)||0);
-          addToAll(r.grupos?.referencia, r.parceiro_nome, r.produto_nome, r.tem_fatura);
+          const t = Number(r.total)||0;
+          addToMap(r.grupos?.referencia, r.produto_nome, t);
+          addToAll(r.grupos?.referencia, r.parceiro_nome, r.produto_nome, r.tem_fatura, t);
         });
         (aloj||[]).forEach(r => {
-          const p=Number(r.preco_compra)||0, q=Number(r.quantidade)||1;
-          addToMap(r.grupos?.referencia, r.produto_nome, p*q);
-          addToAll(r.grupos?.referencia, r.parceiro_nome, r.produto_nome, r.tem_fatura);
+          const p=Number(r.preco_compra)||0, q=Number(r.quantidade)||1, t=p*q;
+          addToMap(r.grupos?.referencia, r.produto_nome, t);
+          addToAll(r.grupos?.referencia, r.parceiro_nome, r.produto_nome, r.tem_fatura, t);
         });
         (trans||[]).forEach(r => {
-          const p=Number(r.preco_compra)||0, q=Number(r.quantidade)||1;
-          addToMap(r.grupos?.referencia, r.produto_nome, p*q);
-          addToAll(r.grupos?.referencia, r.parceiro_nome, r.produto_nome, r.tem_fatura);
+          const p=Number(r.preco_compra)||0, q=Number(r.quantidade)||1, t=p*q;
+          addToMap(r.grupos?.referencia, r.produto_nome, t);
+          addToAll(r.grupos?.referencia, r.parceiro_nome, r.produto_nome, r.tem_fatura, t);
         });
         (merch||[]).forEach(r => {
-          addToMap(r.grupos?.referencia, r.produto_nome, Number(r.total_c_iva)||0);
-          addToAll(r.grupos?.referencia, r.parceiro_nome, r.produto_nome, r.tem_fatura);
+          const t=Number(r.total_c_iva)||0;
+          addToMap(r.grupos?.referencia, r.produto_nome, t);
+          addToAll(r.grupos?.referencia, r.parceiro_nome, r.produto_nome, r.tem_fatura, t);
         });
         _odvComprasRows = (odvC||[]).filter(r => r.grupos?.referencia).map(r => {
           const row = new Array(10).fill('');
@@ -7229,10 +7232,7 @@
             const comprasListHtml = comprasG.length
               ? comprasG.map(c=>{
                   const ok=(c[5]||'').toLowerCase()==='sim';
-                  const mapKey0 = `${(c[0]||'').trim()}|${(c[4]||'').trim()}`;
-                  const mapKey1 = `${(c[1]||'').trim()}|${(c[4]||'').trim()}`;
-                  const totals = _hsComprasMap[mapKey0] || _hsComprasMap[mapKey1] || [];
-                  const totalSum = totals.reduce((a,b)=>a+b, 0);
+                  const totalSum = Number(c[6])||0;
                   return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0"><span style="color:${ok?'#34d399':'#f87171'};font-size:12px">${ok?'✓':'✗'}</span><span style="font-size:11px;color:#94a3b8;min-width:90px;flex-shrink:0">${c[3]||'—'}</span><span style="font-size:11px;color:#475569;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c[4]||'—'}</span>${totalSum ? `<span style="font-size:11px;font-weight:600;color:#f472b6;white-space:nowrap">${fmt(totalSum)}</span>` : ''}</div>`;
                 }).join('')
               : `<span style="font-size:11px;color:#334155">Sem registos</span>`;
@@ -7403,10 +7403,7 @@
             });
             const compras = cf.map(c=>{
               const ok=(c[5]||'').toLowerCase()==='sim';
-              const mk0=`${(c[0]||'').trim()}|${(c[4]||'').trim()}`;
-              const mk1=`${(c[1]||'').trim()}|${(c[4]||'').trim()}`;
-              const totals=_hsComprasMap[mk0]||_hsComprasMap[mk1]||[];
-              return { desc:c[4]||'', parceiro:c[3]||'', valor:totals.reduce((a,b)=>a+b,0), recebida:ok?'Sim':'Não' };
+              return { desc:c[4]||'', parceiro:c[3]||'', valor:Number(c[6])||0, recebida:ok?'Sim':'Não' };
             });
             writeGroup('HenStag Portugal', key, nome, fatVNrs, fatValor, compras, lb, ivaEff, ll);
           });
