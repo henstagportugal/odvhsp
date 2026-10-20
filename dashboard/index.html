@@ -5033,8 +5033,9 @@
         const _lb  = parseEuro(r[22]) + Math.max(0, parseEuro(r[27]) - parseEuro(r[28]));
         const _iva = parseEuro(r[22]) > 0 ? parseEuro(r[24]) : 0;
         const _llRow = _lb - _iva;
+        const isSiteCode = grupoId && /^#\d/.test(grupoId);
         const idCell   = grupoId
-          ? `<span class="font-mono" style="color:#8b5cf6">${grupoId}</span>`
+          ? `<span class="font-mono" style="color:${isSiteCode ? '#64748b' : '#8b5cf6'}">${grupoId}</span>${isSiteCode ? ' <span class="px-1.5 py-0.5 rounded text-xs" style="background:rgba(99,102,241,.15);color:#818cf8">Site</span>' : ''}`
           : `<span class="font-mono" style="color:#64748b">${vendaId}</span> <span class="px-1.5 py-0.5 rounded text-xs" style="background:rgba(99,102,241,.15);color:#818cf8">Site</span>`;
         const estadoPag = (r[14]||'').trim();
         const badgePag = estadoPag === 'Pago' ? 'badge-green' : estadoPag.toLowerCase().includes('aguarda') ? 'badge-red' : 'badge-gray';
