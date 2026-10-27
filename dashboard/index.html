@@ -399,7 +399,12 @@
 
           <!-- Balanço -->
           <div>
-            <p class="section-label mb-3">Balanço</p>
+            <div class="flex items-center justify-between mb-3">
+              <p class="section-label" id="g-bal-title">Balanço</p>
+              <select id="g-bal-year-filter" onchange="window._renderBalanco(+this.value)"
+                class="text-xs px-3 py-1.5 rounded-lg cursor-pointer" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;outline:none">
+              </select>
+            </div>
             <div class="card p-5">
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="rounded-xl p-4" style="background:#0f1117;border:1px solid #1e2535">
@@ -420,15 +425,19 @@
 
           <!-- Peso por marca -->
           <div>
-            <p class="section-label mb-3">Peso por Marca</p>
+            <div class="flex items-center justify-between mb-3">
+              <p class="section-label">Peso por Marca</p>
+              <select id="g-peso-year-filter" onchange="window._renderPesoMarca(+this.value)"
+                class="text-xs px-3 py-1.5 rounded-lg cursor-pointer" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;outline:none">
+              </select>
+            </div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <!-- Este mês -->
               <div class="card p-5">
                 <p class="text-sm font-semibold mb-4" style="color:#94a3b8">Faturação — Este Mês</p>
                 <div id="g-peso-fat-mes" class="space-y-3"></div>
               </div>
               <div class="card p-5">
-                <p class="text-sm font-semibold mb-4" style="color:#94a3b8">Faturação — Acumulado ano</p>
+                <p id="g-peso-fat-ano-label" class="text-sm font-semibold mb-4" style="color:#94a3b8">Faturação — Acumulado ano</p>
                 <div id="g-peso-fat-ano" class="space-y-3"></div>
               </div>
               <div class="card p-5">
@@ -436,8 +445,16 @@
                 <div id="g-peso-ll-mes" class="space-y-3"></div>
               </div>
               <div class="card p-5">
-                <p class="text-sm font-semibold mb-4" style="color:#94a3b8">Lucro Líquido — Acumulado ano</p>
+                <p id="g-peso-ll-ano-label" class="text-sm font-semibold mb-4" style="color:#94a3b8">Lucro Líquido — Acumulado ano</p>
                 <div id="g-peso-ll-ano" class="space-y-3"></div>
+              </div>
+              <div class="card p-5">
+                <p class="text-sm font-semibold mb-4" style="color:#94a3b8">Faturação — Desde o início</p>
+                <div id="g-peso-fat-total" class="space-y-3"></div>
+              </div>
+              <div class="card p-5">
+                <p class="text-sm font-semibold mb-4" style="color:#94a3b8">Lucro Líquido — Desde o início</p>
+                <div id="g-peso-ll-total" class="space-y-3"></div>
               </div>
             </div>
           </div>
@@ -3133,31 +3150,40 @@
       const mode = window._cmpMode[section];
       const st = window['_cmpData_' + section];
       if (!st) return;
-      const ref = mode === 'yoy' ? st.fatMesAnoPassado : st.fatMesPassado;
       const label = mode === 'yoy' ? st.anoPassadoMesLabel : st.prevLabel;
-      const diff = st.fatMes - ref;
-      const pct = ref > 0 ? ((diff/ref)*100).toFixed(1) : null;
-      const color = diff >= 0 ? '#34d399' : '#f87171';
       const prefix = section === 'geral' ? 'g' : section === 'hsp' ? 'hs' : 'c';
-      const subEl = document.getElementById(prefix + '-fat-mes-sub');
-      if (!subEl) return;
       const btnEl = document.getElementById(section + '-cmp-toggle');
       if (btnEl) {
         btnEl.textContent = mode === 'yoy' ? 'vs ano anterior' : 'vs mês anterior';
         btnEl.style.background = mode === 'yoy' ? '#1e293b' : '#312e81';
       }
-      if (section === 'geral') {
-        subEl.innerHTML = pct !== null
-          ? `<span style="color:${color};font-weight:600">${diff>=0?'▲ +':'▼ '}${pct}% vs ${label}</span>
-             <span style="color:#334155;display:block">${st.odvLabel} ${fmt(st.odvFatMes)} + ${st.hspLabel} ${fmt(st.hsFatMes)}</span>
-             <span style="color:#334155;display:block">${label}: ${fmt(ref)}</span>`
-          : `<span style="color:#334155">${st.odvLabel} ${fmt(st.odvFatMes)} + ${st.hspLabel} ${fmt(st.hsFatMes)}</span>`;
-      } else {
-        subEl.innerHTML = pct !== null
-          ? `<span style="color:${color};font-weight:600">${diff>=0?'▲ +':'▼ '}${pct}% vs ${label}</span>
-             <span style="color:#64748b;display:block;margin-top:2px;font-size:0.7rem">${fmt(ref)} em ${label}</span>`
-          : `<span style="color:#475569">vs ${label}</span>`;
+      // Helper to render one metric's sub element
+      function renderSub(metric, geralOdvKey, geralHsKey) {
+        const cur = st[metric+'Mes'];
+        if (cur === undefined) return;
+        const ref = mode === 'yoy' ? st[metric+'MesAnoPassado'] : st[metric+'MesPassado'];
+        const diff = cur - ref;
+        const pct = ref > 0 ? ((diff/ref)*100).toFixed(1) : null;
+        const color = diff >= 0 ? '#34d399' : '#f87171';
+        const subEl = document.getElementById(prefix + '-' + metric + '-mes-sub');
+        if (!subEl) return;
+        if (section === 'geral') {
+          const odvVal = st[geralOdvKey]||0, hsVal = st[geralHsKey]||0;
+          subEl.innerHTML = pct !== null
+            ? `<span style="color:${color};font-weight:600">${diff>=0?'▲ +':'▼ '}${pct}% vs ${label}</span>
+               <span style="color:#334155;display:block">${st.odvLabel} ${fmt(odvVal)} + ${st.hspLabel} ${fmt(hsVal)}</span>
+               <span style="color:#334155;display:block">${label}: ${fmt(ref)}</span>`
+            : `<span style="color:#334155">${st.odvLabel} ${fmt(odvVal)} + ${st.hspLabel} ${fmt(hsVal)}</span>`;
+        } else {
+          subEl.innerHTML = pct !== null
+            ? `<span style="color:${color};font-weight:600">${diff>=0?'▲ +':'▼ '}${pct}% vs ${label}</span>
+               <span style="color:#64748b;display:block;margin-top:2px;font-size:0.7rem">${fmt(ref)} em ${label}</span>`
+            : `<span style="color:#475569">vs ${label}</span>`;
+        }
       }
+      renderSub('fat', 'odvFatMes', 'hsFatMes');
+      renderSub('lb',  'odvLbMes',  'hsLbMes');
+      renderSub('ll',  'odvLlMes',  'hsLlMes');
     }
     function daysFromNow(s) {
       if (!s) return null;
@@ -3440,8 +3466,9 @@
         const now = new Date();
         let fatMes=0, fatAno=0, lbMes=0, lbAno=0, llMes=0, llAno=0;
         let fatMesPassado=0, fatMesAnoPassado=0;
+        let lbMesPassado=0, llMesPassado=0, lbMesAnoPassado=0, llMesAnoPassado=0;
         let fatAnoPassado=0, lbAnoPassado=0, llAnoPassado=0;
-        let llTotal=0;
+        let llTotal=0, fatTotal=0;
         const nowDay = now.getDate();
         const nowMonth = now.getMonth();
         const lastYear = now.getFullYear() - 1;
@@ -3455,18 +3482,18 @@
           const lb  = parseEuro(row[32]);
           const iva = (lb > 0 && (row[9]||'').trim()) ? parseEuro(row[34]) : 0;
           const ll  = lb - iva;
-          llTotal+=ll;
+          llTotal+=ll; fatTotal+=tot;
           if (isThisYear(d)) {
             fatAno+=tot; lbAno+=lb; llAno+=ll;
             if (isThisMonth(d)) { fatMes+=tot; lbMes+=lb; llMes+=ll; }
           }
           // Mês passado até ao mesmo dia
           if (d.getFullYear()===prevMonthYear && d.getMonth()===prevMonth && d.getDate()<=nowDay) {
-            fatMesPassado+=tot;
+            fatMesPassado+=tot; lbMesPassado+=lb; llMesPassado+=ll;
           }
           // Mesmo mês do ano passado até ao mesmo dia
           if (d.getFullYear()===lastYear && d.getMonth()===nowMonth && d.getDate()<=nowDay) {
-            fatMesAnoPassado+=tot;
+            fatMesAnoPassado+=tot; lbMesAnoPassado+=lb; llMesAnoPassado+=ll;
           }
           // Acumulado do ano passado até ao mesmo dia do ano
           if (d.getFullYear()===lastYear && (d.getMonth()<nowMonth || (d.getMonth()===nowMonth && d.getDate()<=nowDay))) {
@@ -3494,7 +3521,7 @@
 
         const prevLabel = new Date(prevMonthYear, prevMonth, 1).toLocaleDateString('pt-PT',{month:'long'});
         const anoPassadoMesLabel = now.toLocaleDateString('pt-PT',{month:'long'}) + ' ' + lastYear;
-        window._cmpData_odv = { fatMes, fatMesPassado, fatMesAnoPassado, prevLabel, anoPassadoMesLabel };
+        window._cmpData_odv = { fatMes, fatMesPassado, fatMesAnoPassado, lbMes, lbMesPassado, lbMesAnoPassado, llMes, llMesPassado, llMesAnoPassado, prevLabel, anoPassadoMesLabel };
 
         document.getElementById('c-fat-mes').textContent = fmt(fatMes);
         _updateMonthCmp('odv');
@@ -3512,7 +3539,6 @@
         const pctLlMes = fatMes  > 0 ? (llMes/fatMes*100).toFixed(1)  : null;
         const pctLlAno = fatAno  > 0 ? (llAno/fatAno*100).toFixed(1)  : null;
         document.getElementById('c-lb-mes').textContent      = fmt(lbMes);
-        document.getElementById('c-lb-mes-sub').textContent  = pctLbMes !== null ? `${pctLbMes}% do faturado` : 'Regime especial IVA';
         document.getElementById('c-lb-ano').textContent      = fmt(lbAno);
         const diffLbAnoOdv = lbAno - lbAnoPassado;
         const pctLbVsOdv = lbAnoPassado > 0 ? ((diffLbAnoOdv/lbAnoPassado)*100).toFixed(1) : null;
@@ -3520,7 +3546,6 @@
           ? `${pctLbAno}% · <span style="color:${diffLbAnoOdv>=0?'#34d399':'#f87171'}">${diffLbAnoOdv>=0?'▲ +':'▼ '}${pctLbVsOdv}% vs ${lastYear}</span>`
           : (pctLbAno !== null ? `${pctLbAno}% · Acumulado ${ano}` : `Acumulado ${ano}`);
         document.getElementById('c-ll-mes').textContent      = fmt(llMes);
-        document.getElementById('c-ll-mes-sub').textContent  = pctLlMes !== null ? `${pctLlMes}% do faturado` : mes;
         document.getElementById('c-ll-ano').textContent      = fmt(llAno);
         const diffLlAnoOdv = llAno - llAnoPassado;
         const pctLlVsOdv = llAnoPassado > 0 ? ((diffLlAnoOdv/llAnoPassado)*100).toFixed(1) : null;
@@ -3594,7 +3619,8 @@
         window._outletState = {
           fatMes, fatAno, lbMes, lbAno, llMes, llAno,
           fatMesPassado, fatMesAnoPassado,
-          fatAnoPassado, lbAnoPassado, llAnoPassado, llTotal,
+          lbMesPassado, llMesPassado, lbMesAnoPassado, llMesAnoPassado,
+          fatAnoPassado, lbAnoPassado, llAnoPassado, llTotal, fatTotal,
           totalReceber, totalDividas,
           pagData, dividasData, viagData,
           vendas: vendas.slice(1),
@@ -5008,7 +5034,8 @@
       const prevLabel = new Date(prevMonthYear, prevMonth, 1).toLocaleDateString('pt-PT',{month:'long'});
 
       let fatMes=0, fatAno=0, lbMes=0, lbAno=0, llMes=0, llAno=0, fatMesPassado=0, emFalta=0;
-      let fatMesAnoPassado=0, fatAnoPassado=0, lbAnoPassado=0, llAnoPassado=0, llTotal=0;
+      let fatMesAnoPassado=0, fatAnoPassado=0, lbAnoPassado=0, llAnoPassado=0, llTotal=0, fatTotal=0;
+      let lbMesPassado=0, llMesPassado=0, lbMesAnoPassado=0, llMesAnoPassado=0;
       const lastYear = ano - 1;
       const nowMonth = now.getMonth();
 
@@ -5026,13 +5053,17 @@
         const lb  = parseEuro(row[22]) + Math.max(0, parseEuro(row[27]) - parseEuro(row[28])); // LB serviços + LB merch
         const iva = parseEuro(row[22]) > 0 ? parseEuro(row[24]) : 0;
         const ll  = lb - iva;
-        llTotal+=ll;
+        llTotal+=ll; fatTotal+=tot;
         if (isThisYear(d)) {
           fatAno+=tot; lbAno+=lb; llAno+=ll;
           if (isThisMonth(d)) { fatMes+=tot; lbMes+=lb; llMes+=ll; }
         }
-        if (d.getFullYear()===prevMonthYear && d.getMonth()===prevMonth && d.getDate()<=nowDay) fatMesPassado+=tot;
-        if (d.getFullYear()===lastYear && d.getMonth()===nowMonth && d.getDate()<=nowDay) fatMesAnoPassado+=tot;
+        if (d.getFullYear()===prevMonthYear && d.getMonth()===prevMonth && d.getDate()<=nowDay) {
+          fatMesPassado+=tot; lbMesPassado+=lb; llMesPassado+=ll;
+        }
+        if (d.getFullYear()===lastYear && d.getMonth()===nowMonth && d.getDate()<=nowDay) {
+          fatMesAnoPassado+=tot; lbMesAnoPassado+=lb; llMesAnoPassado+=ll;
+        }
         if (d.getFullYear()===lastYear && (d.getMonth()<nowMonth || (d.getMonth()===nowMonth && d.getDate()<=nowDay))) {
           fatAnoPassado+=tot; lbAnoPassado+=lb; llAnoPassado+=ll;
         }
@@ -5051,7 +5082,7 @@
 
       // Store comparison data for toggle
       const anoPassadoMesLabel = now.toLocaleDateString('pt-PT',{month:'long'}) + ' ' + lastYear;
-      window._cmpData_hsp = { fatMes, fatMesPassado, fatMesAnoPassado, prevLabel, anoPassadoMesLabel };
+      window._cmpData_hsp = { fatMes, fatMesPassado, fatMesAnoPassado, lbMes, lbMesPassado, lbMesAnoPassado, llMes, llMesPassado, llMesAnoPassado, prevLabel, anoPassadoMesLabel };
 
       setText('hs-fat-mes', fmt(fatMes));
       _updateMonthCmp('hsp');
@@ -5070,7 +5101,6 @@
       const pctLlAno = fatAno > 0 ? (llAno/fatAno*100).toFixed(1) : null;
 
       setText('hs-lb-mes', fmt(lbMes));
-      setText('hs-lb-mes-sub', pctLbMes !== null ? `${pctLbMes}% do faturado` : mes);
       setText('hs-lb-ano', fmt(lbAno));
       const diffLbAnoHs = lbAno - lbAnoPassado;
       const pctLbVsHs = lbAnoPassado > 0 ? ((diffLbAnoHs/lbAnoPassado)*100).toFixed(1) : null;
@@ -5078,7 +5108,6 @@
         ? `${pctLbAno}% · <span style="color:${diffLbAnoHs>=0?'#34d399':'#f87171'}">${diffLbAnoHs>=0?'▲ +':'▼ '}${pctLbVsHs}% vs ${lastYear}</span>`
         : (pctLbAno !== null ? `${pctLbAno}% · Acumulado ${ano}` : `Acumulado ${ano}`);
       setText('hs-ll-mes', fmt(llMes));
-      setText('hs-ll-mes-sub', pctLlMes !== null ? `${pctLlMes}% do faturado` : mes);
       setText('hs-ll-ano', fmt(llAno));
       const diffLlAnoHs = llAno - llAnoPassado;
       const pctLlVsHs = llAnoPassado > 0 ? ((diffLlAnoHs/llAnoPassado)*100).toFixed(1) : null;
@@ -6325,7 +6354,8 @@
       const nowMonth = now.getMonth();
       const nowDay = now.getDate();
       let hsFatMes=0, hsFatAno=0, hsLbMes=0, hsLbAno=0, hsLlMes=0, hsLlAno=0, hsFatMesPassado=0;
-      let hsFatMesAnoPassado=0, hsFatAnoPassado=0, hsLbAnoPassado=0, hsLlAnoPassado=0, hsLlTotal=0;
+      let hsFatMesAnoPassado=0, hsFatAnoPassado=0, hsLbAnoPassado=0, hsLlAnoPassado=0, hsLlTotal=0, hsFatTotal=0;
+      let hsLbMesPassado=0, hsLlMesPassado=0, hsLbMesAnoPassado=0, hsLlMesAnoPassado=0;
       h.rows.forEach(row => {
         const d = parseDate(row[2]);
         if (!d) return;
@@ -6339,10 +6369,14 @@
         const lb  = parseEuro(row[22]) + Math.max(0, parseEuro(row[27]) - parseEuro(row[28]));
         const iva = parseEuro(row[22]) > 0 ? parseEuro(row[24]) : 0;
         const ll  = lb - iva;
-        hsLlTotal+=ll;
+        hsLlTotal+=ll; hsFatTotal+=fat;
         if (isThisYear(d))  { hsFatAno+=fat; hsLbAno+=lb; hsLlAno+=ll; if (isThisMonth(d)) { hsFatMes+=fat; hsLbMes+=lb; hsLlMes+=ll; } }
-        if (d.getFullYear()===prevMonthYear && d.getMonth()===prevMonth && d.getDate()<=nowDay) hsFatMesPassado+=fat;
-        if (d.getFullYear()===lastYear && d.getMonth()===nowMonth && d.getDate()<=nowDay) hsFatMesAnoPassado+=fat;
+        if (d.getFullYear()===prevMonthYear && d.getMonth()===prevMonth && d.getDate()<=nowDay) {
+          hsFatMesPassado+=fat; hsLbMesPassado+=lb; hsLlMesPassado+=ll;
+        }
+        if (d.getFullYear()===lastYear && d.getMonth()===nowMonth && d.getDate()<=nowDay) {
+          hsFatMesAnoPassado+=fat; hsLbMesAnoPassado+=lb; hsLlMesAnoPassado+=ll;
+        }
         if (d.getFullYear()===lastYear && (d.getMonth()<nowMonth || (d.getMonth()===nowMonth && d.getDate()<=nowDay))) {
           hsFatAnoPassado+=fat; hsLbAnoPassado+=lb; hsLlAnoPassado+=ll;
         }
@@ -6367,18 +6401,26 @@
       const llAno  = o.llAno  + hsLlAno;
       const fatMesPassado = o.fatMesPassado + hsFatMesPassado;
       const fatMesAnoPassado = (o.fatMesAnoPassado||0) + hsFatMesAnoPassado;
+      const lbMesPassado = (o.lbMesPassado||0) + hsLbMesPassado;
+      const llMesPassado = (o.llMesPassado||0) + hsLlMesPassado;
+      const lbMesAnoPassado = (o.lbMesAnoPassado||0) + hsLbMesAnoPassado;
+      const llMesAnoPassado = (o.llMesAnoPassado||0) + hsLlMesAnoPassado;
       const fatAnoPassado = (o.fatAnoPassado||0) + hsFatAnoPassado;
       const lbAnoPassado = (o.lbAnoPassado||0) + hsLbAnoPassado;
       const llAnoPassado = (o.llAnoPassado||0) + hsLlAnoPassado;
       const llTotal = (o.llTotal||0) + hsLlTotal;
+      const fatTotal = (o.fatTotal||0) + hsFatTotal;
       const totalReceber = o.totalReceber + hsReceber;
       const totalPagar   = o.totalDividas + hsPagar;
       const net = totalReceber - totalPagar;
 
       // Store comparison data for toggle
       const anoPassadoMesLabel = now.toLocaleDateString('pt-PT',{month:'long'}) + ' ' + lastYear;
-      window._cmpData_geral = { fatMes, fatMesPassado, fatMesAnoPassado, prevLabel, anoPassadoMesLabel,
-        odvFatMes: o.fatMes, hsFatMes, odvLabel: '✈️', hspLabel: '🦌' };
+      window._cmpData_geral = { fatMes, fatMesPassado, fatMesAnoPassado,
+        lbMes, lbMesPassado, lbMesAnoPassado, llMes, llMesPassado, llMesAnoPassado,
+        prevLabel, anoPassadoMesLabel,
+        odvFatMes: o.fatMes, hsFatMes, odvLbMes: o.lbMes, hsLbMes, odvLlMes: o.llMes, hsLlMes,
+        odvLabel: '✈️', hspLabel: '🦌' };
 
       // KPI cards
       setText('g-fat-mes', fmt(fatMes));
@@ -6401,7 +6443,6 @@
       const pctLlMes = fatMes > 0 ? (llMes/fatMes*100).toFixed(1) : null;
       const pctLlAno = fatAno > 0 ? (llAno/fatAno*100).toFixed(1) : null;
       setText('g-lb-mes', fmt(lbMes));
-      setText('g-lb-mes-sub', pctLbMes ? pctLbMes+'% do faturado' : '');
       setText('g-lb-ano', fmt(lbAno));
       const diffLbAnoG = lbAno - lbAnoPassado;
       const pctLbVsG = lbAnoPassado > 0 ? ((diffLbAnoG/lbAnoPassado)*100).toFixed(1) : null;
@@ -6409,7 +6450,6 @@
         ? `${pctLbAno}% · <span style="color:${diffLbAnoG>=0?'#34d399':'#f87171'}">${diffLbAnoG>=0?'▲ +':'▼ '}${pctLbVsG}% vs ${lastYear}</span>`
         : (pctLbAno ? pctLbAno+'% acumulado' : '');
       setText('g-ll-mes', fmt(llMes));
-      setText('g-ll-mes-sub', pctLlMes ? pctLlMes+'% do faturado' : '');
       setText('g-ll-ano', fmt(llAno));
       const diffLlAnoG = llAno - llAnoPassado;
       const pctLlVsG = llAnoPassado > 0 ? ((diffLlAnoG/llAnoPassado)*100).toFixed(1) : null;
@@ -6419,18 +6459,60 @@
       setText('g-receber', fmt(totalReceber));
       setText('g-pagar', fmt(totalPagar));
 
-      // Balanço
-      setText('g-bal-receber', fmt(totalReceber));
-      setText('g-bal-pagar', fmt(totalPagar));
-      const netEl = document.getElementById('g-bal-net');
-      const netCard = document.getElementById('g-bal-card');
-      if (netEl) { netEl.textContent = (net>=0?'+':'')+fmt(net); netEl.style.color = net>=0?'#34d399':'#f87171'; }
-      if (netCard) netCard.style.borderColor = net>=0?'#34d39440':'#f8717140';
+      // ── Balanço (year-filterable) ──
+      // Collect all years from vendas
+      const balYears = new Set([ano]);
+      o.vendas.forEach(row => { const d = parseDate(row[7]); if (d) balYears.add(d.getFullYear()); });
+      h.rows.forEach(row => { const d = parseDate(row[2]); if (d) balYears.add(d.getFullYear()); });
+      const sortedBalYears = [...balYears].sort((a,b)=>b-a);
 
-      // Peso por marca helper
+      // Store data for Balanço re-render
+      window._geralBalData = { o, h, sortedYears: sortedBalYears };
+      window._renderBalanco = function(year) {
+        const _o = window._geralBalData.o;
+        const _h = window._geralBalData.h;
+        // ODV receber filtered by year
+        let odvReceber = 0;
+        (_o.pagData||[]).forEach(r => { const d = parseDate(r[5]); if (!year || (d && d.getFullYear()===year)) odvReceber += parseEuro(r[4]); });
+        // ODV pagar filtered by year
+        let odvPagar = 0;
+        (_o.dividasData||[]).forEach(r => { const d = parseDate(r[3]); if (!year || (d && d.getFullYear()===year)) odvPagar += parseEuro(r[2]); });
+        // HSP receber filtered by year
+        let _hsRec = 0;
+        if (_h.pagamentos.length) {
+          const _ph = (_h.pagamentos[0]||[]).map(hh => norm(String(hh||'')));
+          const ppIdx = Math.max(_ph.findIndex(hh => hh.includes('pagar')),0)||5;
+          const pdC = (_ph.findIndex(hh=>hh.includes('data')&&!hh.includes('venda'))>=0?_ph.findIndex(hh=>hh.includes('data')&&!hh.includes('venda')):6);
+          _h.pagamentos.slice(1).forEach(r => { const d = parseDate(r[pdC]); if (!year || (d && d.getFullYear()===year)) _hsRec += parseEuro(r[ppIdx]); });
+        }
+        // HSP pagar filtered by year
+        let _hsPay = 0;
+        _h.dividas.filter(r=>parseEuro(r[4])>0).forEach(r => { const d = parseDate(r[5]); if (!year || (d && d.getFullYear()===year)) _hsPay += parseEuro(r[4]); });
+        const rec = odvReceber + _hsRec;
+        const pay = odvPagar + _hsPay;
+        const bal = rec - pay;
+        setText('g-bal-title', year ? 'Balanço ' + year : 'Balanço — Total');
+        setText('g-bal-receber', fmt(rec));
+        setText('g-bal-pagar', fmt(pay));
+        const netEl = document.getElementById('g-bal-net');
+        const netCard = document.getElementById('g-bal-card');
+        if (netEl) { netEl.textContent = (bal>=0?'+':'')+fmt(bal); netEl.style.color = bal>=0?'#34d399':'#f87171'; }
+        if (netCard) netCard.style.borderColor = bal>=0?'#34d39440':'#f8717140';
+      };
+      // Populate year dropdown
+      const balSel = document.getElementById('g-bal-year-filter');
+      if (balSel) {
+        balSel.innerHTML = sortedBalYears.map(y => `<option value="${y}" ${y===ano?'selected':''}>${y}</option>`).join('')
+          + `<option value="0">Total</option>`;
+      }
+      window._renderBalanco(ano);
+
+      // ── Peso por marca (year-filterable + since inception) ──
       function pesoBar(containerId, brands) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
         const total = brands.reduce((s,b)=>s+b.val,0) || 1;
-        document.getElementById(containerId).innerHTML = brands.map(b => {
+        el.innerHTML = brands.map(b => {
           const pct = (b.val/total*100).toFixed(1);
           return `<div>
             <div class="flex justify-between text-xs mb-1">
@@ -6443,10 +6525,47 @@
           </div>`;
         }).join('');
       }
+      // Store per-year data for peso re-render
+      window._geralPesoData = { o, h, hRows: h.rows };
+      window._renderPesoMarca = function(year) {
+        const _o = window._geralPesoData.o;
+        const _hR = window._geralPesoData.hRows;
+        let oFat=0, oLl=0, hFat=0, hLl=0;
+        _o.vendas.forEach(row => {
+          const d = parseDate(row[7]); if (!d || d.getFullYear()!==year) return;
+          oFat += parseEuro(row[26]);
+          const lb2 = parseEuro(row[32]);
+          const iva2 = (lb2>0 && (row[9]||'').trim()) ? parseEuro(row[34]) : 0;
+          oLl += lb2 - iva2;
+        });
+        _hR.forEach(row => {
+          const d = parseDate(row[2]); if (!d || d.getFullYear()!==year) return;
+          hFat += parseEuro(row[15]);
+          const lb2 = parseEuro(row[22]) + Math.max(0, parseEuro(row[27]) - parseEuro(row[28]));
+          const iva2 = parseEuro(row[22])>0 ? parseEuro(row[24]) : 0;
+          hLl += lb2 - iva2;
+        });
+        const lbl = document.getElementById('g-peso-fat-ano-label');
+        const lbl2 = document.getElementById('g-peso-ll-ano-label');
+        if (lbl) lbl.textContent = 'Faturação — Acumulado ' + year;
+        if (lbl2) lbl2.textContent = 'Lucro Líquido — Acumulado ' + year;
+        pesoBar('g-peso-fat-ano', [{label:'✈️ Outlet das Viagens',val:oFat,color:'#818cf8'},{label:'🦌 HenStag Portugal',val:hFat,color:'#34d399'}]);
+        pesoBar('g-peso-ll-ano',  [{label:'✈️ Outlet das Viagens',val:oLl, color:'#818cf8'},{label:'🦌 HenStag Portugal',val:hLl, color:'#34d399'}]);
+      };
+      // Populate peso year dropdown
+      const pesoSel = document.getElementById('g-peso-year-filter');
+      if (pesoSel) {
+        pesoSel.innerHTML = sortedBalYears.map(y => `<option value="${y}" ${y===ano?'selected':''}>${y}</option>`).join('');
+      }
+      // Este Mês
       pesoBar('g-peso-fat-mes', [{label:'✈️ Outlet das Viagens',val:o.fatMes,color:'#818cf8'},{label:'🦌 HenStag Portugal',val:hsFatMes,color:'#34d399'}]);
-      pesoBar('g-peso-fat-ano', [{label:'✈️ Outlet das Viagens',val:o.fatAno,color:'#818cf8'},{label:'🦌 HenStag Portugal',val:hsFatAno,color:'#34d399'}]);
       pesoBar('g-peso-ll-mes',  [{label:'✈️ Outlet das Viagens',val:o.llMes, color:'#818cf8'},{label:'🦌 HenStag Portugal',val:hsLlMes, color:'#34d399'}]);
+      // Acumulado ano (default = current year)
+      pesoBar('g-peso-fat-ano', [{label:'✈️ Outlet das Viagens',val:o.fatAno,color:'#818cf8'},{label:'🦌 HenStag Portugal',val:hsFatAno,color:'#34d399'}]);
       pesoBar('g-peso-ll-ano',  [{label:'✈️ Outlet das Viagens',val:o.llAno, color:'#818cf8'},{label:'🦌 HenStag Portugal',val:hsLlAno, color:'#34d399'}]);
+      // Desde o início
+      pesoBar('g-peso-fat-total', [{label:'✈️ Outlet das Viagens',val:o.fatTotal||0,color:'#818cf8'},{label:'🦌 HenStag Portugal',val:hsFatTotal,color:'#34d399'}]);
+      pesoBar('g-peso-ll-total',  [{label:'✈️ Outlet das Viagens',val:o.llTotal||0, color:'#818cf8'},{label:'🦌 HenStag Portugal',val:hsLlTotal, color:'#34d399'}]);
 
       // Store combined LL so despesas callback can use it
       window._geralLlMes = llMes;
