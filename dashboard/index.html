@@ -301,7 +301,10 @@
         <div id="g-resumo" class="space-y-6">
           <!-- KPIs este mês -->
           <div>
-            <p class="section-label mb-3">Este Mês — Total Consolidado</p>
+            <div class="flex items-center justify-between mb-3">
+              <p class="section-label">Este Mês — Total Consolidado</p>
+              <button id="geral-cmp-toggle" onclick="toggleCmpMode('geral')" class="text-xs px-3 py-1 rounded-full cursor-pointer transition-colors" style="background:#1e293b;color:#94a3b8;border:1px solid #334155">vs ano anterior</button>
+            </div>
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div class="card p-5">
                 <p class="text-xs mb-1" style="color:#64748b">Faturado</p>
@@ -365,6 +368,31 @@
               <div class="card p-5">
                 <p class="text-xs mb-1" style="color:#64748b">Resultado líquido ano</p>
                 <p id="g-net-ano" class="text-xl sm:text-2xl font-bold">—</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Resultado Líquido desde o início -->
+          <div>
+            <p class="section-label mb-3">Resultado Global</p>
+            <div class="card p-5" id="g-resultado-total-card" style="border:1px solid #334155">
+              <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div class="rounded-xl p-4" style="background:#0f1117;border:1px solid #1e2535">
+                  <p class="text-xs mb-1" style="color:#64748b">Lucro Líquido total (desde o início)</p>
+                  <p id="g-ll-total" class="text-lg sm:text-xl font-bold val-teal">—</p>
+                </div>
+                <div class="rounded-xl p-4" style="background:#0f1117;border:1px solid #1e2535">
+                  <p class="text-xs mb-1" style="color:#64748b">Despesas totais (desde o início)</p>
+                  <p id="g-desp-total" class="text-lg sm:text-xl font-bold val-red">—</p>
+                </div>
+                <div class="rounded-xl p-4" style="background:#0f1117;border:1px solid #1e2535" id="g-resultado-card">
+                  <p class="text-xs mb-1" style="color:#64748b">Resultado líquido desde o início</p>
+                  <p id="g-resultado-total" class="text-lg sm:text-xl font-bold">—</p>
+                </div>
+                <div class="rounded-xl p-4" style="background:#0f1117;border:1px solid #1e2535">
+                  <p class="text-xs mb-1" style="color:#64748b">Detalhe</p>
+                  <p id="g-resultado-detalhe" class="text-xs" style="color:#64748b">—</p>
+                </div>
               </div>
             </div>
           </div>
@@ -522,7 +550,10 @@
 
           <!-- Cards Faturação -->
           <div>
-            <p class="section-label mb-3">Faturação</p>
+            <div class="flex items-center justify-between mb-3">
+              <p class="section-label">Faturação</p>
+              <button id="odv-cmp-toggle" onclick="toggleCmpMode('odv')" class="text-xs px-3 py-1 rounded-full cursor-pointer transition-colors" style="background:#1e293b;color:#94a3b8;border:1px solid #334155">vs ano anterior</button>
+            </div>
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div class="card card-blue p-5 flex flex-col gap-2">
                 <div class="flex items-start justify-between">
@@ -749,7 +780,10 @@
 
           <!-- Cards Faturação HS -->
           <div>
-            <p class="section-label mb-3">Faturação</p>
+            <div class="flex items-center justify-between mb-3">
+              <p class="section-label">Faturação</p>
+              <button id="hsp-cmp-toggle" onclick="toggleCmpMode('hsp')" class="text-xs px-3 py-1 rounded-full cursor-pointer transition-colors" style="background:#1e293b;color:#94a3b8;border:1px solid #334155">vs ano anterior</button>
+            </div>
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div class="card card-purple p-5 flex flex-col gap-2">
                 <div class="flex items-start justify-between">
@@ -3088,6 +3122,43 @@
       return d && d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth();
     }
     function isThisYear(d) { return d && d.getFullYear()===new Date().getFullYear(); }
+    function isLastYear(d) { return d && d.getFullYear()===new Date().getFullYear()-1; }
+    // Comparison mode: 'yoy' = vs same month last year (default), 'mom' = vs previous month
+    window._cmpMode = { odv: 'yoy', hsp: 'yoy', geral: 'yoy' };
+    function toggleCmpMode(section) {
+      window._cmpMode[section] = window._cmpMode[section] === 'yoy' ? 'mom' : 'yoy';
+      _updateMonthCmp(section);
+    }
+    function _updateMonthCmp(section) {
+      const mode = window._cmpMode[section];
+      const st = window['_cmpData_' + section];
+      if (!st) return;
+      const ref = mode === 'yoy' ? st.fatMesAnoPassado : st.fatMesPassado;
+      const label = mode === 'yoy' ? st.anoPassadoMesLabel : st.prevLabel;
+      const diff = st.fatMes - ref;
+      const pct = ref > 0 ? ((diff/ref)*100).toFixed(1) : null;
+      const color = diff >= 0 ? '#34d399' : '#f87171';
+      const prefix = section === 'geral' ? 'g' : section === 'hsp' ? 'hs' : 'c';
+      const subEl = document.getElementById(prefix + '-fat-mes-sub');
+      if (!subEl) return;
+      const btnEl = document.getElementById(section + '-cmp-toggle');
+      if (btnEl) {
+        btnEl.textContent = mode === 'yoy' ? 'vs ano anterior' : 'vs mês anterior';
+        btnEl.style.background = mode === 'yoy' ? '#1e293b' : '#312e81';
+      }
+      if (section === 'geral') {
+        subEl.innerHTML = pct !== null
+          ? `<span style="color:${color};font-weight:600">${diff>=0?'▲ +':'▼ '}${pct}% vs ${label}</span>
+             <span style="color:#334155;display:block">${st.odvLabel} ${fmt(st.odvFatMes)} + ${st.hspLabel} ${fmt(st.hsFatMes)}</span>
+             <span style="color:#334155;display:block">${label}: ${fmt(ref)}</span>`
+          : `<span style="color:#334155">${st.odvLabel} ${fmt(st.odvFatMes)} + ${st.hspLabel} ${fmt(st.hsFatMes)}</span>`;
+      } else {
+        subEl.innerHTML = pct !== null
+          ? `<span style="color:${color};font-weight:600">${diff>=0?'▲ +':'▼ '}${pct}% vs ${label}</span>
+             <span style="color:#64748b;display:block;margin-top:2px;font-size:0.7rem">${fmt(ref)} em ${label}</span>`
+          : `<span style="color:#475569">vs ${label}</span>`;
+      }
+    }
     function daysFromNow(s) {
       if (!s) return null;
       const d = parseDate(s);
@@ -3368,8 +3439,12 @@
         // ── VENDAS ──
         const now = new Date();
         let fatMes=0, fatAno=0, lbMes=0, lbAno=0, llMes=0, llAno=0;
-        let fatMesPassado=0;
+        let fatMesPassado=0, fatMesAnoPassado=0;
+        let fatAnoPassado=0, lbAnoPassado=0, llAnoPassado=0;
+        let llTotal=0;
         const nowDay = now.getDate();
+        const nowMonth = now.getMonth();
+        const lastYear = now.getFullYear() - 1;
         const prevMonthYear = now.getMonth() === 0 ? now.getFullYear()-1 : now.getFullYear();
         const prevMonth     = now.getMonth() === 0 ? 11 : now.getMonth()-1;
 
@@ -3380,6 +3455,7 @@
           const lb  = parseEuro(row[32]);
           const iva = (lb > 0 && (row[9]||'').trim()) ? parseEuro(row[34]) : 0;
           const ll  = lb - iva;
+          llTotal+=ll;
           if (isThisYear(d)) {
             fatAno+=tot; lbAno+=lb; llAno+=ll;
             if (isThisMonth(d)) { fatMes+=tot; lbMes+=lb; llMes+=ll; }
@@ -3387,6 +3463,14 @@
           // Mês passado até ao mesmo dia
           if (d.getFullYear()===prevMonthYear && d.getMonth()===prevMonth && d.getDate()<=nowDay) {
             fatMesPassado+=tot;
+          }
+          // Mesmo mês do ano passado até ao mesmo dia
+          if (d.getFullYear()===lastYear && d.getMonth()===nowMonth && d.getDate()<=nowDay) {
+            fatMesAnoPassado+=tot;
+          }
+          // Acumulado do ano passado até ao mesmo dia do ano
+          if (d.getFullYear()===lastYear && (d.getMonth()<nowMonth || (d.getMonth()===nowMonth && d.getDate()<=nowDay))) {
+            fatAnoPassado+=tot; lbAnoPassado+=lb; llAnoPassado+=ll;
           }
         });
 
@@ -3408,19 +3492,21 @@
         const mesShort = now.toLocaleDateString('pt-PT',{month:'short'});
         const ano = now.getFullYear();
 
-        document.getElementById('c-fat-mes').textContent = fmt(fatMes);
-        // Comparação com mês passado
-        const diff = fatMes - fatMesPassado;
-        const pct  = fatMesPassado > 0 ? Math.round(Math.abs(diff)/fatMesPassado*100) : null;
-        const arrow = diff >= 0 ? '▲' : '▼';
-        const arrowColor = diff >= 0 ? '#34d399' : '#f87171';
-        const pctStr = pct !== null ? ` ${pct}%` : '';
         const prevLabel = new Date(prevMonthYear, prevMonth, 1).toLocaleDateString('pt-PT',{month:'long'});
-        document.getElementById('c-fat-mes-sub').innerHTML =
-          `<span style="color:${arrowColor};font-weight:600">${arrow}${pctStr} vs ${prevLabel}</span>
-           <span style="color:#64748b;display:block;margin-top:2px;font-size:0.7rem">${fmt(fatMesPassado)} em ${prevLabel}</span>`;
-        document.getElementById('c-fat-ano').textContent     = fmt(fatAno);
-        document.getElementById('c-fat-ano-sub').textContent = `Jan–${mesShort} ${ano}`;
+        const anoPassadoMesLabel = now.toLocaleDateString('pt-PT',{month:'long'}) + ' ' + lastYear;
+        window._cmpData_odv = { fatMes, fatMesPassado, fatMesAnoPassado, prevLabel, anoPassadoMesLabel };
+
+        document.getElementById('c-fat-mes').textContent = fmt(fatMes);
+        _updateMonthCmp('odv');
+
+        document.getElementById('c-fat-ano').textContent = fmt(fatAno);
+        const diffAnoOdv = fatAno - fatAnoPassado;
+        const pctAnoOdv = fatAnoPassado > 0 ? ((diffAnoOdv/fatAnoPassado)*100).toFixed(1) : null;
+        document.getElementById('c-fat-ano-sub').innerHTML = pctAnoOdv !== null
+          ? `<span style="color:${diffAnoOdv>=0?'#34d399':'#f87171'};font-weight:600">${diffAnoOdv>=0?'▲ +':'▼ '}${pctAnoOdv}% vs ${lastYear}</span>
+             <span style="color:#64748b;display:block;margin-top:2px;font-size:0.7rem">${fmt(fatAnoPassado)} em ${lastYear}</span>`
+          : `Jan–${mesShort} ${ano}`;
+
         const pctLbMes = fatMes  > 0 ? (lbMes/fatMes*100).toFixed(1)  : null;
         const pctLbAno = fatAno  > 0 ? (lbAno/fatAno*100).toFixed(1)  : null;
         const pctLlMes = fatMes  > 0 ? (llMes/fatMes*100).toFixed(1)  : null;
@@ -3428,11 +3514,19 @@
         document.getElementById('c-lb-mes').textContent      = fmt(lbMes);
         document.getElementById('c-lb-mes-sub').textContent  = pctLbMes !== null ? `${pctLbMes}% do faturado` : 'Regime especial IVA';
         document.getElementById('c-lb-ano').textContent      = fmt(lbAno);
-        document.getElementById('c-lb-ano-sub').textContent  = pctLbAno !== null ? `${pctLbAno}% · Acumulado ${ano}` : `Acumulado ${ano}`;
+        const diffLbAnoOdv = lbAno - lbAnoPassado;
+        const pctLbVsOdv = lbAnoPassado > 0 ? ((diffLbAnoOdv/lbAnoPassado)*100).toFixed(1) : null;
+        document.getElementById('c-lb-ano-sub').innerHTML = pctLbVsOdv !== null
+          ? `${pctLbAno}% · <span style="color:${diffLbAnoOdv>=0?'#34d399':'#f87171'}">${diffLbAnoOdv>=0?'▲ +':'▼ '}${pctLbVsOdv}% vs ${lastYear}</span>`
+          : (pctLbAno !== null ? `${pctLbAno}% · Acumulado ${ano}` : `Acumulado ${ano}`);
         document.getElementById('c-ll-mes').textContent      = fmt(llMes);
         document.getElementById('c-ll-mes-sub').textContent  = pctLlMes !== null ? `${pctLlMes}% do faturado` : mes;
         document.getElementById('c-ll-ano').textContent      = fmt(llAno);
-        document.getElementById('c-ll-ano-sub').textContent  = pctLlAno !== null ? `${pctLlAno}% · Acumulado ${ano}` : `Acumulado ${ano}`;
+        const diffLlAnoOdv = llAno - llAnoPassado;
+        const pctLlVsOdv = llAnoPassado > 0 ? ((diffLlAnoOdv/llAnoPassado)*100).toFixed(1) : null;
+        document.getElementById('c-ll-ano-sub').innerHTML = pctLlVsOdv !== null
+          ? `${pctLlAno}% · <span style="color:${diffLlAnoOdv>=0?'#34d399':'#f87171'}">${diffLlAnoOdv>=0?'▲ +':'▼ '}${pctLlVsOdv}% vs ${lastYear}</span>`
+          : (pctLlAno !== null ? `${pctLlAno}% · Acumulado ${ano}` : `Acumulado ${ano}`);
         document.getElementById('c-receber').textContent     = fmt(totalReceber);
         document.getElementById('c-dividas').textContent     = fmt(totalDividas);
         const saldo = totalReceber - totalDividas;
@@ -3499,7 +3593,8 @@
         // ── STORE GLOBAL STATE FOR GERAL ──
         window._outletState = {
           fatMes, fatAno, lbMes, lbAno, llMes, llAno,
-          fatMesPassado,
+          fatMesPassado, fatMesAnoPassado,
+          fatAnoPassado, lbAnoPassado, llAnoPassado, llTotal,
           totalReceber, totalDividas,
           pagData, dividasData, viagData,
           vendas: vendas.slice(1),
@@ -4913,6 +5008,9 @@
       const prevLabel = new Date(prevMonthYear, prevMonth, 1).toLocaleDateString('pt-PT',{month:'long'});
 
       let fatMes=0, fatAno=0, lbMes=0, lbAno=0, llMes=0, llAno=0, fatMesPassado=0, emFalta=0;
+      let fatMesAnoPassado=0, fatAnoPassado=0, lbAnoPassado=0, llAnoPassado=0, llTotal=0;
+      const lastYear = ano - 1;
+      const nowMonth = now.getMonth();
 
       const _hsFiRs = window._hsGpFatIdx ?? 8;
       rows.forEach(row => {
@@ -4928,11 +5026,16 @@
         const lb  = parseEuro(row[22]) + Math.max(0, parseEuro(row[27]) - parseEuro(row[28])); // LB serviços + LB merch
         const iva = parseEuro(row[22]) > 0 ? parseEuro(row[24]) : 0;
         const ll  = lb - iva;
+        llTotal+=ll;
         if (isThisYear(d)) {
           fatAno+=tot; lbAno+=lb; llAno+=ll;
           if (isThisMonth(d)) { fatMes+=tot; lbMes+=lb; llMes+=ll; }
         }
         if (d.getFullYear()===prevMonthYear && d.getMonth()===prevMonth && d.getDate()<=nowDay) fatMesPassado+=tot;
+        if (d.getFullYear()===lastYear && d.getMonth()===nowMonth && d.getDate()<=nowDay) fatMesAnoPassado+=tot;
+        if (d.getFullYear()===lastYear && (d.getMonth()<nowMonth || (d.getMonth()===nowMonth && d.getDate()<=nowDay))) {
+          fatAnoPassado+=tot; lbAnoPassado+=lb; llAnoPassado+=ll;
+        }
         // emFalta summed from Próximos Pagamentos below
       });
 
@@ -4946,16 +5049,20 @@
         rows.forEach(r => { emFalta += parseEuro(r[18]); });
       }
 
-      // vs mês anterior
-      const vsStr = fatMesPassado > 0
-        ? (() => { const pct = ((fatMes - fatMesPassado)/fatMesPassado*100); return (pct>=0?'▲ +':'▼ ') + pct.toFixed(1) + `% vs ${prevLabel}`; })()
-        : `vs ${prevLabel}`;
-      const vsColor = fatMesPassado > 0 ? (fatMes >= fatMesPassado ? '#34d399' : '#f87171') : '#475569';
+      // Store comparison data for toggle
+      const anoPassadoMesLabel = now.toLocaleDateString('pt-PT',{month:'long'}) + ' ' + lastYear;
+      window._cmpData_hsp = { fatMes, fatMesPassado, fatMesAnoPassado, prevLabel, anoPassadoMesLabel };
 
       setText('hs-fat-mes', fmt(fatMes));
-      document.getElementById('hs-fat-mes-sub').innerHTML = `<span style="color:${vsColor}">${vsStr}</span>` + (fatMesPassado>0 ? `<span style="color:#64748b;display:block;margin-top:2px;font-size:0.7rem">${fmt(fatMesPassado)} em ${prevLabel}</span>` : '');
+      _updateMonthCmp('hsp');
+
       setText('hs-fat-ano', fmt(fatAno));
-      setText('hs-fat-ano-sub', `Acumulado ${ano}`);
+      const diffAnoHs = fatAno - fatAnoPassado;
+      const pctAnoHs = fatAnoPassado > 0 ? ((diffAnoHs/fatAnoPassado)*100).toFixed(1) : null;
+      document.getElementById('hs-fat-ano-sub').innerHTML = pctAnoHs !== null
+        ? `<span style="color:${diffAnoHs>=0?'#34d399':'#f87171'};font-weight:600">${diffAnoHs>=0?'▲ +':'▼ '}${pctAnoHs}% vs ${lastYear}</span>
+           <span style="color:#64748b;display:block;margin-top:2px;font-size:0.7rem">${fmt(fatAnoPassado)} em ${lastYear}</span>`
+        : `Acumulado ${ano}`;
 
       const pctLbMes = fatMes > 0 ? (lbMes/fatMes*100).toFixed(1) : null;
       const pctLbAno = fatAno > 0 ? (lbAno/fatAno*100).toFixed(1) : null;
@@ -4965,11 +5072,19 @@
       setText('hs-lb-mes', fmt(lbMes));
       setText('hs-lb-mes-sub', pctLbMes !== null ? `${pctLbMes}% do faturado` : mes);
       setText('hs-lb-ano', fmt(lbAno));
-      setText('hs-lb-ano-sub', pctLbAno !== null ? `${pctLbAno}% · Acumulado ${ano}` : `Acumulado ${ano}`);
+      const diffLbAnoHs = lbAno - lbAnoPassado;
+      const pctLbVsHs = lbAnoPassado > 0 ? ((diffLbAnoHs/lbAnoPassado)*100).toFixed(1) : null;
+      document.getElementById('hs-lb-ano-sub').innerHTML = pctLbVsHs !== null
+        ? `${pctLbAno}% · <span style="color:${diffLbAnoHs>=0?'#34d399':'#f87171'}">${diffLbAnoHs>=0?'▲ +':'▼ '}${pctLbVsHs}% vs ${lastYear}</span>`
+        : (pctLbAno !== null ? `${pctLbAno}% · Acumulado ${ano}` : `Acumulado ${ano}`);
       setText('hs-ll-mes', fmt(llMes));
       setText('hs-ll-mes-sub', pctLlMes !== null ? `${pctLlMes}% do faturado` : mes);
       setText('hs-ll-ano', fmt(llAno));
-      setText('hs-ll-ano-sub', pctLlAno !== null ? `${pctLlAno}% · Acumulado ${ano}` : `Acumulado ${ano}`);
+      const diffLlAnoHs = llAno - llAnoPassado;
+      const pctLlVsHs = llAnoPassado > 0 ? ((diffLlAnoHs/llAnoPassado)*100).toFixed(1) : null;
+      document.getElementById('hs-ll-ano-sub').innerHTML = pctLlVsHs !== null
+        ? `${pctLlAno}% · <span style="color:${diffLlAnoHs>=0?'#34d399':'#f87171'}">${diffLlAnoHs>=0?'▲ +':'▼ '}${pctLlVsHs}% vs ${lastYear}</span>`
+        : (pctLlAno !== null ? `${pctLlAno}% · Acumulado ${ano}` : `Acumulado ${ano}`);
       setText('hs-emfalta', fmt(emFalta));
 
       // Próximos pagamentos (col T = idx 19)
@@ -6206,7 +6321,11 @@
       // ── HS metrics (same columns as renderHsResumo) ──
       // row[2]=DataReserva, row[15]=Total€, row[22]=LucroBruto serviços, row[27]-[28]=LB merch, row[24]=IVA RE
       const _hsFiR = window._hsGpFatIdx ?? 8;
+      const lastYear = ano - 1;
+      const nowMonth = now.getMonth();
+      const nowDay = now.getDate();
       let hsFatMes=0, hsFatAno=0, hsLbMes=0, hsLbAno=0, hsLlMes=0, hsLlAno=0, hsFatMesPassado=0;
+      let hsFatMesAnoPassado=0, hsFatAnoPassado=0, hsLbAnoPassado=0, hsLlAnoPassado=0, hsLlTotal=0;
       h.rows.forEach(row => {
         const d = parseDate(row[2]);
         if (!d) return;
@@ -6220,8 +6339,13 @@
         const lb  = parseEuro(row[22]) + Math.max(0, parseEuro(row[27]) - parseEuro(row[28]));
         const iva = parseEuro(row[22]) > 0 ? parseEuro(row[24]) : 0;
         const ll  = lb - iva;
+        hsLlTotal+=ll;
         if (isThisYear(d))  { hsFatAno+=fat; hsLbAno+=lb; hsLlAno+=ll; if (isThisMonth(d)) { hsFatMes+=fat; hsLbMes+=lb; hsLlMes+=ll; } }
-        if (d.getFullYear()===prevMonthYear && d.getMonth()===prevMonth && d.getDate()<=now.getDate()) hsFatMesPassado+=fat;
+        if (d.getFullYear()===prevMonthYear && d.getMonth()===prevMonth && d.getDate()<=nowDay) hsFatMesPassado+=fat;
+        if (d.getFullYear()===lastYear && d.getMonth()===nowMonth && d.getDate()<=nowDay) hsFatMesAnoPassado+=fat;
+        if (d.getFullYear()===lastYear && (d.getMonth()<nowMonth || (d.getMonth()===nowMonth && d.getDate()<=nowDay))) {
+          hsFatAnoPassado+=fat; hsLbAnoPassado+=lb; hsLlAnoPassado+=ll;
+        }
       });
 
       // HS a receber
@@ -6242,24 +6366,36 @@
       const llMes  = o.llMes  + hsLlMes;
       const llAno  = o.llAno  + hsLlAno;
       const fatMesPassado = o.fatMesPassado + hsFatMesPassado;
+      const fatMesAnoPassado = (o.fatMesAnoPassado||0) + hsFatMesAnoPassado;
+      const fatAnoPassado = (o.fatAnoPassado||0) + hsFatAnoPassado;
+      const lbAnoPassado = (o.lbAnoPassado||0) + hsLbAnoPassado;
+      const llAnoPassado = (o.llAnoPassado||0) + hsLlAnoPassado;
+      const llTotal = (o.llTotal||0) + hsLlTotal;
       const totalReceber = o.totalReceber + hsReceber;
       const totalPagar   = o.totalDividas + hsPagar;
       const net = totalReceber - totalPagar;
 
+      // Store comparison data for toggle
+      const anoPassadoMesLabel = now.toLocaleDateString('pt-PT',{month:'long'}) + ' ' + lastYear;
+      window._cmpData_geral = { fatMes, fatMesPassado, fatMesAnoPassado, prevLabel, anoPassadoMesLabel,
+        odvFatMes: o.fatMes, hsFatMes, odvLabel: '✈️', hspLabel: '🦌' };
+
       // KPI cards
       setText('g-fat-mes', fmt(fatMes));
+      _updateMonthCmp('geral');
+
       setText('g-fat-ano', fmt(fatAno));
       setText('g-ano-label', ano);
       const mesesDecorridos = now.getMonth() + 1; // 1-based
       const mediaFatMes = fatAno / mesesDecorridos;
-      setText('g-fat-media-sub', `Média: ${fmt(mediaFatMes)}/mês (${mesesDecorridos} meses)`);
-      const diff = fatMes - fatMesPassado;
-      const pct  = fatMesPassado > 0 ? ((diff/fatMesPassado)*100).toFixed(1) : null;
-      document.getElementById('g-fat-mes-sub').innerHTML = pct !== null
-        ? `<span style="color:${diff>=0?'#34d399':'#f87171'};font-weight:600">${diff>=0?'▲ +':'▼ '}${pct}% vs ${prevLabel}</span>
-           <span style="color:#334155;display:block">✈️ ${fmt(o.fatMes)} + 🦌 ${fmt(hsFatMes)}</span>
-           <span style="color:#334155;display:block">${prevLabel}: ${fmt(fatMesPassado)}</span>`
-        : `<span style="color:#334155">✈️ ${fmt(o.fatMes)} + 🦌 ${fmt(hsFatMes)}</span>`;
+      // Accumulated year-over-year comparison
+      const diffAnoG = fatAno - fatAnoPassado;
+      const pctAnoG = fatAnoPassado > 0 ? ((diffAnoG/fatAnoPassado)*100).toFixed(1) : null;
+      document.getElementById('g-fat-media-sub').innerHTML = pctAnoG !== null
+        ? `<span style="color:${diffAnoG>=0?'#34d399':'#f87171'};font-weight:600">${diffAnoG>=0?'▲ +':'▼ '}${pctAnoG}% vs ${lastYear}</span>
+           <span style="color:#334155;display:block">Média: ${fmt(mediaFatMes)}/mês · ${fmt(fatAnoPassado)} em ${lastYear}</span>`
+        : `Média: ${fmt(mediaFatMes)}/mês (${mesesDecorridos} meses)`;
+
       const pctLbMes = fatMes > 0 ? (lbMes/fatMes*100).toFixed(1) : null;
       const pctLbAno = fatAno > 0 ? (lbAno/fatAno*100).toFixed(1) : null;
       const pctLlMes = fatMes > 0 ? (llMes/fatMes*100).toFixed(1) : null;
@@ -6267,11 +6403,19 @@
       setText('g-lb-mes', fmt(lbMes));
       setText('g-lb-mes-sub', pctLbMes ? pctLbMes+'% do faturado' : '');
       setText('g-lb-ano', fmt(lbAno));
-      setText('g-lb-ano-sub', pctLbAno ? pctLbAno+'% acumulado' : '');
+      const diffLbAnoG = lbAno - lbAnoPassado;
+      const pctLbVsG = lbAnoPassado > 0 ? ((diffLbAnoG/lbAnoPassado)*100).toFixed(1) : null;
+      document.getElementById('g-lb-ano-sub').innerHTML = pctLbVsG !== null
+        ? `${pctLbAno}% · <span style="color:${diffLbAnoG>=0?'#34d399':'#f87171'}">${diffLbAnoG>=0?'▲ +':'▼ '}${pctLbVsG}% vs ${lastYear}</span>`
+        : (pctLbAno ? pctLbAno+'% acumulado' : '');
       setText('g-ll-mes', fmt(llMes));
       setText('g-ll-mes-sub', pctLlMes ? pctLlMes+'% do faturado' : '');
       setText('g-ll-ano', fmt(llAno));
-      setText('g-ll-ano-sub', pctLlAno ? pctLlAno+'% acumulado' : '');
+      const diffLlAnoG = llAno - llAnoPassado;
+      const pctLlVsG = llAnoPassado > 0 ? ((diffLlAnoG/llAnoPassado)*100).toFixed(1) : null;
+      document.getElementById('g-ll-ano-sub').innerHTML = pctLlVsG !== null
+        ? `${pctLlAno}% · <span style="color:${diffLlAnoG>=0?'#34d399':'#f87171'}">${diffLlAnoG>=0?'▲ +':'▼ '}${pctLlVsG}% vs ${lastYear}</span>`
+        : (pctLlAno ? pctLlAno+'% acumulado' : '');
       setText('g-receber', fmt(totalReceber));
       setText('g-pagar', fmt(totalPagar));
 
@@ -6307,6 +6451,7 @@
       // Store combined LL so despesas callback can use it
       window._geralLlMes = llMes;
       window._geralLlAno = llAno;
+      window._geralLlTotal = llTotal;
 
       // Despesas da empresa — populate if already loaded, else trigger load
       if (window._despesasState) {
@@ -6362,12 +6507,13 @@
       const prevMonth = now.getMonth()===0?11:now.getMonth()-1;
       const prevMonthYear = now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
 
-      let despMes = 0, despAno = 0;
+      let despMes = 0, despAno = 0, despTotal = 0;
       data.slice(1).forEach(r => {
         const v = parseEuro(r[iValor]);
         if (!v || v <= 0) return;
         const d = parseDate(r[iData]);
         if (!d) return;
+        despTotal += v;
         if (d.getFullYear()===thisAno) {
           despAno += v;
           if (d.getMonth()===thisMes) despMes += v;
@@ -6376,8 +6522,10 @@
 
       const llMes = window._geralLlMes || 0;
       const llAno = window._geralLlAno || 0;
+      const llTotal = window._geralLlTotal || 0;
       const netMes = llMes - despMes;
       const netAno = llAno - despAno;
+      const netTotal = llTotal - despTotal;
 
       const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
       const setColor = (id, c) => { const el = document.getElementById(id); if (el) el.style.color = c; };
@@ -6391,6 +6539,15 @@
 
       setEl('g-net-ano', (netAno>=0?'+':'')+fmt(netAno));
       setColor('g-net-ano', netAno>=0?'#34d399':'#f87171');
+
+      // Resultado líquido desde o início da empresa
+      setEl('g-ll-total', fmt(llTotal));
+      setEl('g-desp-total', fmt(despTotal));
+      setEl('g-resultado-total', (netTotal>=0?'+':'')+fmt(netTotal));
+      setColor('g-resultado-total', netTotal>=0?'#34d399':'#f87171');
+      const resCard = document.getElementById('g-resultado-card');
+      if (resCard) resCard.style.borderColor = netTotal>=0?'#34d39940':'#f8717140';
+      setEl('g-resultado-detalhe', `LL total ${fmt(llTotal)} − Despesas ${fmt(despTotal)}`);
     }
 
     function renderGeralAfazeres(o, h, hsReceber, hsPagar) {
@@ -6630,7 +6787,7 @@
       hide('g-despesas-loading');
     }
 
-    function renderGeralDespesas(data, fixas) {
+    function renderGeralDespesas(data, fixas, filterYear) {
       if (!data || data.length < 2) {
         document.getElementById('g-despesas-content').innerHTML = '<div class="card p-8 text-center" style="color:#475569">Sem dados de despesas.</div>';
         return;
@@ -6646,9 +6803,19 @@
       const iIvaDed  = ci(['iva','dedut'],8);
       const iConta   = ci(['conta'],11);
 
-      const rows = data.slice(1).filter(r => r[iData] && parseDate(r[iData]));
+      const allRows = data.slice(1).filter(r => r[iData] && parseDate(r[iData]));
       const now = new Date();
-      const ano = now.getFullYear();
+      const ano = filterYear || window._despesasFilterYear || now.getFullYear();
+      window._despesasFilterYear = ano;
+
+      // Collect all available years
+      const allYears = new Set();
+      allRows.forEach(r => { const d = parseDate(r[iData]); if (d) allYears.add(d.getFullYear()); });
+      allYears.add(now.getFullYear());
+      const sortedYears = [...allYears].sort((a,b) => b-a);
+
+      // Filter rows by selected year
+      const rows = allRows.filter(r => { const d = parseDate(r[iData]); return d && d.getFullYear() === ano; });
 
       let totalAno=0, totalMes=0, ivaAno=0;
       const byTipo={}, byMes={};
@@ -6659,7 +6826,8 @@
         const iva = parseEuro(r[iIvaDed]);
         const tipo = r[iTipo]||'Outro';
         const mesKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-        if (isThisYear(d)) { totalAno+=val; ivaAno+=iva; if (isThisMonth(d)) totalMes+=val; }
+        totalAno+=val; ivaAno+=iva;
+        if (d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth()) totalMes+=val;
         if (!byTipo[tipo]) byTipo[tipo]=0; byTipo[tipo]+=val;
         if (!byMes[mesKey]) byMes[mesKey]={total:0,rows:[]}; byMes[mesKey].total+=val; byMes[mesKey].rows.push(r);
       });
@@ -6714,9 +6882,17 @@
         </div>`;
       }
 
+      const yearOptions = sortedYears.map(y => `<option value="${y}" ${y===ano?'selected':''}>${y}</option>`).join('');
       const html = `
+        <div class="flex items-center justify-between mb-4">
+          <p class="section-label">Despesas ${ano}</p>
+          <select id="despesas-year-filter" onchange="window._despesasFilterYear=+this.value; renderGeralDespesas(window._despesasState.data, window._despesasState.fixas, +this.value)"
+            class="text-sm px-3 py-1.5 rounded-lg cursor-pointer" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;outline:none">
+            ${yearOptions}
+          </select>
+        </div>
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="card p-5 card-red"><p class="text-xs mb-1" style="color:#64748b">Total este mês</p><p class="text-xl sm:text-2xl font-bold val-red">${fmt(totalMes)}</p></div>
+          <div class="card p-5 card-red"><p class="text-xs mb-1" style="color:#64748b">${ano===now.getFullYear()?'Total este mês':'—'}</p><p class="text-xl sm:text-2xl font-bold val-red">${ano===now.getFullYear()?fmt(totalMes):'—'}</p></div>
           <div class="card p-5 card-red"><p class="text-xs mb-1" style="color:#64748b">Total acumulado ${ano}</p><p class="text-xl sm:text-2xl font-bold val-red">${fmt(totalAno)}</p></div>
           <div class="card p-5"><p class="text-xs mb-1" style="color:#64748b">IVA dedutível ${ano}</p><p class="text-xl sm:text-2xl font-bold val-green">${fmt(ivaAno)}</p></div>
           <div class="card p-5"><p class="text-xs mb-1" style="color:#64748b">Categorias</p><p class="text-xl sm:text-2xl font-bold val-purple">${sortedTipo.length}</p></div>
