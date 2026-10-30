@@ -6532,23 +6532,23 @@
       window._renderBalanco = function(year) {
         const _o = window._geralBalData.o;
         const _h = window._geralBalData.h;
-        // ODV receber filtered by year
+        // ODV receber filtered by year (rows without date included in any year)
         let odvReceber = 0;
-        (_o.pagData||[]).forEach(r => { const d = parseDate(r[5]); if (!year || (d && d.getFullYear()===year)) odvReceber += parseEuro(r[4]); });
+        (_o.pagData||[]).forEach(r => { const d = parseDate(r[5]); if (!year || !d || d.getFullYear()===year) odvReceber += parseEuro(r[4]); });
         // ODV pagar filtered by year
         let odvPagar = 0;
-        (_o.dividasData||[]).forEach(r => { const d = parseDate(r[3]); if (!year || (d && d.getFullYear()===year)) odvPagar += parseEuro(r[2]); });
+        (_o.dividasData||[]).forEach(r => { const d = parseDate(r[3]); if (!year || !d || d.getFullYear()===year) odvPagar += parseEuro(r[2]); });
         // HSP receber filtered by year
         let _hsRec = 0;
         if (_h.pagamentos.length) {
           const _ph = (_h.pagamentos[0]||[]).map(hh => norm(String(hh||'')));
           const ppIdx = Math.max(_ph.findIndex(hh => hh.includes('pagar')),0)||5;
           const pdC = (_ph.findIndex(hh=>hh.includes('data')&&!hh.includes('venda'))>=0?_ph.findIndex(hh=>hh.includes('data')&&!hh.includes('venda')):6);
-          _h.pagamentos.slice(1).forEach(r => { const d = parseDate(r[pdC]); if (!year || (d && d.getFullYear()===year)) _hsRec += parseEuro(r[ppIdx]); });
+          _h.pagamentos.slice(1).forEach(r => { const d = parseDate(r[pdC]); if (!year || !d || d.getFullYear()===year) _hsRec += parseEuro(r[ppIdx]); });
         }
         // HSP pagar filtered by year
         let _hsPay = 0;
-        _h.dividas.filter(r=>parseEuro(r[4])>0).forEach(r => { const d = parseDate(r[5]); if (!year || (d && d.getFullYear()===year)) _hsPay += parseEuro(r[4]); });
+        _h.dividas.filter(r=>parseEuro(r[4])>0).forEach(r => { const d = parseDate(r[5]); if (!year || !d || d.getFullYear()===year) _hsPay += parseEuro(r[4]); });
         const rec = odvReceber + _hsRec;
         const pay = odvPagar + _hsPay;
         const bal = rec - pay;
