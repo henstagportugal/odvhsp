@@ -4075,10 +4075,10 @@
         const fonte = (row[6]||'').trim()  || '—';
         const canal = (row[16]||'').trim()  || '—';
 
-        // Travel month from Data IDA (col 13)
+        // Travel month from Data IDA (col 13) — filtered by selected year
         const dIda = parseDate(row[13]);
-        const tmkey = dIda ? `${dIda.getFullYear()}-${String(dIda.getMonth()+1).padStart(2,'0')}` : null;
-        if (tmkey) {
+        if (dIda && (!displayYear || dIda.getFullYear() === displayYear)) {
+          const tmkey = `${dIda.getFullYear()}-${String(dIda.getMonth()+1).padStart(2,'0')}`;
           if (!tmonths[tmkey]) tmonths[tmkey] = { label: new Date(dIda.getFullYear(), dIda.getMonth(), 1).toLocaleDateString('pt-PT',{month:'short',year:'numeric'}), fat:0, lb:0, ll:0 };
           tmonths[tmkey].fat+=fat; tmonths[tmkey].lb+=lb; tmonths[tmkey].ll+=ll;
         }
@@ -5434,8 +5434,8 @@
         const mk = `${dRes.getFullYear()}-${String(dRes.getMonth()+1).padStart(2,'0')}`;
         addTo(months, mk, { label: new Date(dRes.getFullYear(), dRes.getMonth(),1).toLocaleDateString('pt-PT',{month:'short',year:'numeric'}) }, fat, lb, ll, row);
 
-        // Por mês do evento (Data Início)
-        if (dIda) {
+        // Por mês do evento (Data Início) — filtered by selected year
+        if (dIda && (hsYear === 'all' || dIda.getFullYear() === hsYear)) {
           const ek = `${dIda.getFullYear()}-${String(dIda.getMonth()+1).padStart(2,'0')}`;
           addTo(eventoMonths, ek, { label: new Date(dIda.getFullYear(), dIda.getMonth(),1).toLocaleDateString('pt-PT',{month:'short',year:'numeric'}) }, fat, lb, ll, row);
         }
