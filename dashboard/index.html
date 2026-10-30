@@ -4077,8 +4077,8 @@
 
         // Travel month from Data IDA (col 13) — filtered by selected year
         const dIda = parseDate(row[13]);
+        const tmkey = dIda ? `${dIda.getFullYear()}-${String(dIda.getMonth()+1).padStart(2,'0')}` : null;
         if (dIda && (!displayYear || dIda.getFullYear() === displayYear)) {
-          const tmkey = `${dIda.getFullYear()}-${String(dIda.getMonth()+1).padStart(2,'0')}`;
           if (!tmonths[tmkey]) tmonths[tmkey] = { label: new Date(dIda.getFullYear(), dIda.getMonth(), 1).toLocaleDateString('pt-PT',{month:'short',year:'numeric'}), fat:0, lb:0, ll:0 };
           tmonths[tmkey].fat+=fat; tmonths[tmkey].lb+=lb; tmonths[tmkey].ll+=ll;
         }
