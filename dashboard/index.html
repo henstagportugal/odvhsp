@@ -966,6 +966,7 @@
                 <input type="date" id="hs-dt-to" onchange="hsReportDateCustom()" style="background:#0f1117;border:1px solid #1e2535;border-radius:8px;padding:8px 10px;color:#e2e8f0;font-size:0.8rem;font-family:inherit;outline:none;min-height:40px;color-scheme:dark">
               </div>
               <button onclick="hsReportDateClear()" style="padding:8px 14px;min-height:40px;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;background:#13161f;color:#94a3b8;border:1px solid #1e2535">✕ Limpar</button>
+              <div id="hs-reports-year-wrap" style="margin-left:auto"></div>
             </div>
           </div>
           <div id="hs-reports-content"></div>
@@ -4033,15 +4034,28 @@
       el.innerHTML=html;
     }
 
-    function buildReports(now, rows) {
+    function buildReports(now, rows, filterYear) {
       const curYear = now.getFullYear();
-      const curMKey = `${curYear}-${String(now.getMonth()+1).padStart(2,'0')}`;
+      window._odvReportsData = rows;
+      const selYear = filterYear !== undefined ? filterYear : (window._odvReportsYear || curYear);
+      window._odvReportsYear = selYear;
+
+      // Collect all available years
+      const rptAllYears = new Set();
+      rows.forEach(row => { const d = parseDate(row[7]); if (d) rptAllYears.add(d.getFullYear()); });
+      rptAllYears.add(curYear);
+      const rptSortedYears = [...rptAllYears].sort((a,b) => b-a);
+
+      const displayYear = selYear === 'all' ? null : selYear;
+      const curMKey = displayYear ? `${displayYear}-${String(now.getMonth()+1).padStart(2,'0')}` : null;
 
       // ── Build monthly buckets (reserva) ──
       const months = {};
-      for (let m = 0; m < 12; m++) {
-        const key = `${curYear}-${String(m+1).padStart(2,'0')}`;
-        months[key] = { label: new Date(curYear,m,1).toLocaleDateString('pt-PT',{month:'short'}), rows:[], fat:0, lb:0, ll:0 };
+      if (displayYear) {
+        for (let m = 0; m < 12; m++) {
+          const key = `${displayYear}-${String(m+1).padStart(2,'0')}`;
+          months[key] = { label: new Date(displayYear,m,1).toLocaleDateString('pt-PT',{month:'short'}), rows:[], fat:0, lb:0, ll:0 };
+        }
       }
 
       // ── Build travel-month buckets (Data IDA, col 13) — all years ──
@@ -4051,7 +4065,8 @@
       const allRows = [];
       rows.forEach(row => {
         const d = parseDate(row[7]); // Data da Reserva
-        if (!d || d.getFullYear() !== curYear) return;
+        if (!d) return;
+        if (displayYear && d.getFullYear() !== displayYear) return;
         const mkey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
         const fat = parseEuro(row[26]), lb = parseEuro(row[32]);
         const _rIva = (lb > 0 && (row[9]||'').trim()) ? parseEuro(row[34]) : 0;
@@ -4070,7 +4085,8 @@
 
         const entry = { mkey, tmkey, fat, lb, ll, dest, fonte, canal, wday: d.getDay() };
         allRows.push(entry);
-        if (months[mkey]) { months[mkey].fat+=fat; months[mkey].lb+=lb; months[mkey].ll+=ll; months[mkey].rows.push(entry); }
+        if (!months[mkey]) months[mkey] = { label: new Date(d.getFullYear(),d.getMonth(),1).toLocaleDateString('pt-PT',{month:'short',year:'numeric'}), rows:[], fat:0, lb:0, ll:0 };
+        months[mkey].fat+=fat; months[mkey].lb+=lb; months[mkey].ll+=ll; months[mkey].rows.push(entry);
       });
 
       // State
@@ -4184,8 +4200,9 @@
       function renderChart() {
         const monthKeys = Object.keys(months).filter(k => {
           const [y,m] = k.split('-');
+          if (selYear === 'all') return true;
           return new Date(Number(y), Number(m)-1, 1) <= now;
-        });
+        }).sort();
         const mc = metricCfg[state.metric];
         const maxVal = Math.max(...monthKeys.map(k => months[k][mc.key]), 1);
 
@@ -4217,7 +4234,7 @@
         const totLl  = ar.reduce((s,r)=>s+r.ll,0);
         const filterLabel = state.monthFilter
           ? `<span class="badge-purple text-xs px-2 py-0.5 rounded-full">${months[state.monthFilter]?.label} ${curYear}</span> <button onclick="window._rClear()" class="text-xs px-2 py-0.5 rounded-full badge-gray ml-1" style="cursor:pointer">✕ limpar filtro</button>`
-          : `<span style="color:#475569;font-size:12px">Ano completo</span>`;
+          : `<span style="color:#475569;font-size:12px">${selYear==='all'?'Todos os anos':'Ano completo'}</span>`;
 
         document.getElementById('r-chart').innerHTML = `
           <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
@@ -4331,7 +4348,16 @@
       };
 
       // Initial render
+      const rptYearOpts = rptSortedYears.map(y => `<option value="${y}" ${y===selYear?'selected':''}>${y}</option>`).join('');
       document.getElementById('reports-content').innerHTML = `
+        <div class="flex items-center justify-between mb-4">
+          <p class="section-label">Reports ${selYear === 'all' ? '— Todos os anos' : selYear}</p>
+          <select id="odv-reports-year" onchange="window._odvReportsYear = this.value === 'all' ? 'all' : +this.value; buildReports(new Date(), window._odvReportsData, window._odvReportsYear)"
+            class="text-sm px-3 py-1.5 rounded-lg cursor-pointer" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;outline:none">
+            <option value="all" ${selYear==='all'?'selected':''}>Todos</option>
+            ${rptYearOpts}
+          </select>
+        </div>
         <div id="r-chart" class="card p-5"></div>
         <div id="r-mes-table" class="card p-5"></div>
         <div id="r-tmonth" class="card p-5"></div>
@@ -4342,8 +4368,9 @@
       (function renderMesTable() {
         const monthKeys = Object.keys(months).filter(k => {
           const [y,m] = k.split('-');
+          if (selYear === 'all') return months[k].fat > 0;
           return new Date(Number(y), Number(m)-1, 1) <= now && months[k].fat > 0;
-        });
+        }).sort();
         if (!monthKeys.length) { document.getElementById('r-mes-table').innerHTML = ''; return; }
         const totFat = monthKeys.reduce((s,k)=>s+months[k].fat,0);
         const totLb  = monthKeys.reduce((s,k)=>s+months[k].lb,0);
@@ -4357,7 +4384,7 @@
           const pLbM = mv.fat>0?(mv.lb/mv.fat*100).toFixed(1):'—';
           const pLlM = mv.fat>0?(mv.ll/mv.fat*100).toFixed(1):'—';
           return `<tr style="border-bottom:1px solid #1e2535;cursor:pointer" onclick="window._rFilter('${k}')">
-            <td class="py-2 px-3 text-xs" style="color:#94a3b8">${mv.label} ${curYear}</td>
+            <td class="py-2 px-3 text-xs" style="color:#94a3b8">${mv.label}${displayYear && !/\d{4}/.test(mv.label) ? ' '+displayYear : ''}</td>
             <td class="py-2 px-3 text-xs text-right font-semibold val-purple">${fmt(mv.fat)}</td>
             <td class="py-2 px-3 text-xs text-right val-green">${fmt(mv.lb)}</td>
             <td class="py-2 px-3 text-xs text-right" style="color:#475569">${pLbM}%</td>
@@ -5349,6 +5376,24 @@
     function _buildHsReports(rows) {
       const now = new Date();
       const ano = now.getFullYear();
+      const hsYear = window._hsReportsYear || ano;
+
+      // Collect all available years for the dropdown
+      const hsRptAllYears = new Set();
+      (window._hsReportRows || rows).forEach(row => { const d = parseDate(row[2]); if (d) hsRptAllYears.add(d.getFullYear()); });
+      hsRptAllYears.add(ano);
+      const hsRptSortedYears = [...hsRptAllYears].sort((a,b) => b-a);
+
+      // Render year dropdown in slicer area
+      const hsYearEl = document.getElementById('hs-reports-year-wrap');
+      if (hsYearEl) {
+        hsYearEl.innerHTML = `<label style="font-size:0.68rem;color:#64748b;font-weight:600;display:block;margin-bottom:5px">ANO</label>
+          <select id="hs-reports-year" onchange="window._hsReportsYear = this.value === 'all' ? 'all' : +this.value; _buildHsReports(_hsFilteredRows())"
+            style="background:#0f1117;border:1px solid #1e2535;border-radius:8px;padding:8px 10px;color:#e2e8f0;font-size:0.8rem;font-family:inherit;outline:none;min-height:40px;cursor:pointer">
+            <option value="all" ${hsYear==='all'?'selected':''}>Todos</option>
+            ${hsRptSortedYears.map(y => `<option value="${y}" ${y===hsYear?'selected':''}>${y}</option>`).join('')}
+          </select>`;
+      }
 
       const canalMap = { R:'Pessoal/Regional', W:'WhatsApp', I:'Instagram', F:'Facebook', P:'Parceiros', O:'Outros', A:'Contacto Simples', B:'Contacto Rápido', C:'Contacto Detalhado' };
 
@@ -5367,7 +5412,8 @@
       rows.forEach(row => {
         const dRes = parseDate(row[2]);
         const dIda = parseDate(row[5]);
-        if (!dRes || !isThisYear(dRes)) return;
+        if (!dRes) return;
+        if (hsYear !== 'all' && dRes.getFullYear() !== hsYear) return;
         _hsWk[dRes.getDay()]++;
         if (dIda) {
           const dias = Math.round((dIda - dRes) / 86400000);
