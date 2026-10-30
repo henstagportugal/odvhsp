@@ -4040,9 +4040,12 @@
       const selYear = filterYear !== undefined ? filterYear : (window._odvReportsYear || curYear);
       window._odvReportsYear = selYear;
 
-      // Collect all available years
+      // Collect all available years (from reserva + travel dates)
       const rptAllYears = new Set();
-      rows.forEach(row => { const d = parseDate(row[7]); if (d) rptAllYears.add(d.getFullYear()); });
+      rows.forEach(row => {
+        const d = parseDate(row[7]); if (d) rptAllYears.add(d.getFullYear());
+        const dIda = parseDate(row[13]); if (dIda) rptAllYears.add(dIda.getFullYear());
+      });
       rptAllYears.add(curYear);
       const rptSortedYears = [...rptAllYears].sort((a,b) => b-a);
 
@@ -4066,7 +4069,10 @@
       rows.forEach(row => {
         const d = parseDate(row[7]); // Data da Reserva
         if (!d) return;
-        if (displayYear && d.getFullYear() !== displayYear) return;
+        const dIda = parseDate(row[13]);
+        const reservaInYear = !displayYear || d.getFullYear() === displayYear;
+        const travelInYear = dIda && displayYear && dIda.getFullYear() === displayYear;
+        if (displayYear && !reservaInYear && !travelInYear) return;
         const mkey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
         const fat = parseEuro(row[26]), lb = parseEuro(row[32]);
         const _rIva = (lb > 0 && (row[9]||'').trim()) ? parseEuro(row[34]) : 0;
@@ -4076,17 +4082,19 @@
         const canal = (row[16]||'').trim()  || '—';
 
         // Travel month from Data IDA (col 13) — filtered by selected year
-        const dIda = parseDate(row[13]);
         const tmkey = dIda ? `${dIda.getFullYear()}-${String(dIda.getMonth()+1).padStart(2,'0')}` : null;
         if (dIda && (!displayYear || dIda.getFullYear() === displayYear)) {
           if (!tmonths[tmkey]) tmonths[tmkey] = { label: new Date(dIda.getFullYear(), dIda.getMonth(), 1).toLocaleDateString('pt-PT',{month:'short',year:'numeric'}), fat:0, lb:0, ll:0 };
           tmonths[tmkey].fat+=fat; tmonths[tmkey].lb+=lb; tmonths[tmkey].ll+=ll;
         }
 
+        // Reserva month — only add to chart if reserva date is in selected year
         const entry = { mkey, tmkey, fat, lb, ll, dest, fonte, canal, wday: d.getDay() };
         allRows.push(entry);
-        if (!months[mkey]) months[mkey] = { label: new Date(d.getFullYear(),d.getMonth(),1).toLocaleDateString('pt-PT',{month:'short',year:'numeric'}), rows:[], fat:0, lb:0, ll:0 };
-        months[mkey].fat+=fat; months[mkey].lb+=lb; months[mkey].ll+=ll; months[mkey].rows.push(entry);
+        if (reservaInYear) {
+          if (!months[mkey]) months[mkey] = { label: new Date(d.getFullYear(),d.getMonth(),1).toLocaleDateString('pt-PT',{month:'short',year:'numeric'}), rows:[], fat:0, lb:0, ll:0 };
+          months[mkey].fat+=fat; months[mkey].lb+=lb; months[mkey].ll+=ll; months[mkey].rows.push(entry);
+        }
       });
 
       // State
@@ -5378,9 +5386,12 @@
       const ano = now.getFullYear();
       const hsYear = window._hsReportsYear || ano;
 
-      // Collect all available years for the dropdown
+      // Collect all available years for the dropdown (reserva + event dates)
       const hsRptAllYears = new Set();
-      (window._hsReportRows || rows).forEach(row => { const d = parseDate(row[2]); if (d) hsRptAllYears.add(d.getFullYear()); });
+      (window._hsReportRows || rows).forEach(row => {
+        const d = parseDate(row[2]); if (d) hsRptAllYears.add(d.getFullYear());
+        const dIda = parseDate(row[5]); if (dIda) hsRptAllYears.add(dIda.getFullYear());
+      });
       hsRptAllYears.add(ano);
       const hsRptSortedYears = [...hsRptAllYears].sort((a,b) => b-a);
 
@@ -5413,7 +5424,9 @@
         const dRes = parseDate(row[2]);
         const dIda = parseDate(row[5]);
         if (!dRes) return;
-        if (hsYear !== 'all' && dRes.getFullYear() !== hsYear) return;
+        const resInYear = hsYear === 'all' || dRes.getFullYear() === hsYear;
+        const evtInYear = dIda && hsYear !== 'all' && dIda.getFullYear() === hsYear;
+        if (hsYear !== 'all' && !resInYear && !evtInYear) return;
         _hsWk[dRes.getDay()]++;
         if (dIda) {
           const dias = Math.round((dIda - dRes) / 86400000);
@@ -5430,9 +5443,11 @@
         const _iva = parseEuro(row[22]) > 0 ? parseEuro(row[24]) : 0;
         const ll  = lb - _iva;
 
-        // Por mês de reserva
+        // Por mês de reserva — only if reserva date is in selected year
         const mk = `${dRes.getFullYear()}-${String(dRes.getMonth()+1).padStart(2,'0')}`;
-        addTo(months, mk, { label: new Date(dRes.getFullYear(), dRes.getMonth(),1).toLocaleDateString('pt-PT',{month:'short',year:'numeric'}) }, fat, lb, ll, row);
+        if (resInYear) {
+          addTo(months, mk, { label: new Date(dRes.getFullYear(), dRes.getMonth(),1).toLocaleDateString('pt-PT',{month:'short',year:'numeric'}) }, fat, lb, ll, row);
+        }
 
         // Por mês do evento (Data Início) — filtered by selected year
         if (dIda && (hsYear === 'all' || dIda.getFullYear() === hsYear)) {
